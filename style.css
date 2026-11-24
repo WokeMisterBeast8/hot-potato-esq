@@ -220,3 +220,39 @@ kbd{font-family:'VT323',monospace;border:2px solid #444;padding:0 4px;font-size:
 .crownkey svg.crown{width:22px;height:15px}
 .stage .profport .pix{width:34px;height:34px}
 .scene .cast svg.prof16{width:clamp(60px,14vw,90px)}
+/* ---- public lobbies, ready, spectators, emotes ---- */
+.publist{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.pubrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;align-items:center;border:3px solid #fff;padding:6px 8px}
+.pubrow .pn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pubrow .pn b{font-weight:400}
+.pubrow .pn small{display:block;font-size:13px;color:var(--dim)}
+.pubrow .pc{font-family:'Atkinson Hyperlegible Mono',ui-monospace,monospace}
+.pubrow .ps{font-size:13px}
+.btn.sm{min-height:38px;padding:0 12px;font-size:15px}
+.rdy{font-size:12px;color:var(--dim);border:1px solid #555;padding:0 4px;margin-left:4px}
+.rdy.on{color:#000;background:var(--good,#5be37f);border-color:transparent}
+.slot.isready{border-color:var(--good,#5be37f)}
+.watchbar{border:2px dashed var(--gold);color:var(--gold);padding:6px 10px;font-size:15px;margin-bottom:10px}
+.chat .emob{border-left:0;border-right:3px solid #fff;padding:0 12px;font-size:20px}
+.emotes{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:4px;padding:6px;border-top:3px solid #fff;max-height:150px;overflow-y:auto}
+.emotes[hidden]{display:none}
+.emo-b{display:flex;flex-direction:column;align-items:center;gap:2px;border:2px solid #555;padding:4px 2px;min-height:52px}
+.emo-b span{font-size:22px;line-height:1}
+.emo-b small{font-size:11px;color:var(--dim);text-align:center}
+.emo-b:hover:not(:disabled),.emo-b:focus-visible{border-color:var(--gold)}
+.emo-b:disabled{opacity:.4}
+.emo-b .crown{width:28px;height:19px}
+.chat .log .emo .em{font-size:28px;vertical-align:middle;margin:0 4px}
+.chat .log .emo .crownemo .crown{width:40px;height:27px;margin:0 6px;vertical-align:middle}
+.chat .log .emo .dim{font-size:.85em}
+@media(max-width:480px){.pubrow{grid-template-columns:minmax(0,1fr) auto auto}.pubrow .ps{grid-column:1}}
+/* ---- campus chat (home screen) ---- */
+#gslot{max-width:640px;margin:18px auto 0;text-align:left}
+.gchat .chat{height:260px}
+.gchat.off{border:2px dashed #444;padding:8px 12px}
+.gname{font:inherit;color:inherit;padding:0;min-height:0;border:0;background:none;cursor:pointer;text-decoration:underline dotted #555}
+.ginv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:2px solid var(--gold);padding:4px 6px}
+.ginv .btn.sm{min-height:32px;font-size:14px}
+.lnk{font:inherit;color:var(--gold);background:none;border:0;padding:0;min-height:0;text-decoration:underline;cursor:pointer}
+.chat .log .gname{border:0;padding:0;font-size:inherit;min-height:0;line-height:inherit}
+.chat .log .ginv .btn{border:3px solid #fff;padding:0 10px}

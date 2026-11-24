@@ -3,9 +3,11 @@
     "lb": {
       "$board": {
         ".read": true,
-        ".indexOn": ["score"],
+        ".indexOn": [
+          "score"
+        ],
         "$entry": {
-          ".write": "auth != null && !data.exists() && ($board === 'vs' || $board === 'cp-1' || $board === 'cp-2' || $board === 'cp-3')",
+          ".write": "auth != null && !data.exists() && ($board === 'vs' || $board === 'cp-1' || $board === 'cp-2' || $board === 'cp-3' || $board === 'torts-1' || $board === 'torts-2' || $board === 'torts-3' || $board === 'k-1' || $board === 'k-2' || $board === 'k-3')",
           ".validate": "newData.hasChildren(['uid','name','score','ts']) && newData.child('uid').val() === auth.uid && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 40000 && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 10 && newData.child('ts').val() <= now"
         }
       }
@@ -37,7 +39,33 @@
         },
         "state": {
           ".write": "auth != null && root.child('rooms').child($code).child('meta/host').val() === auth.uid"
+        },
+        "specs": {
+          "$id": {
+            ".write": "auth != null && ($id === auth.uid || root.child('rooms').child($code).child('meta/host').val() === auth.uid)",
+            ".validate": "!newData.exists() || (newData.child('n').isString() && newData.child('n').val().length <= 24)"
+          }
         }
+      }
+    },
+    "pub": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "ts"
+      ],
+      "$code": {
+        ".write": "auth != null && (root.child('rooms').child($code).child('meta/host').val() === auth.uid || (!newData.exists() && data.child('host').val() === auth.uid))",
+        ".validate": "!newData.exists() || (newData.child('host').val() === auth.uid && newData.child('hn').isString() && newData.child('hn').val().length <= 24 && newData.child('n').isNumber() && newData.child('max').isNumber() && newData.child('st').isString())"
+      }
+    },
+    "gchat": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "ts"
+      ],
+      "$m": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || data.child('ts').val() < now - 86400000)))",
+        ".validate": "!newData.exists() || (newData.child('n').isString() && newData.child('n').val().length <= 24 && (!newData.child('t').exists() || (newData.child('t').isString() && newData.child('t').val().length <= 140)) && (!newData.child('inv').exists() || (newData.child('inv').isString() && newData.child('inv').val().length <= 12)) && newData.child('ts').val() <= now)"
       }
     }
   }

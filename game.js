@@ -121,13 +121,13 @@ const withCrown=(id,svg)=>{const n=crownN(id);return n?`<span class="crowned">${
 let ON=null,ME='me',onState=window.HP_FIREBASE?'connecting':'off',onErr='';
 async function goOnline(){
   if(!window.HP_FIREBASE)return;
-  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';loadCrowns();}
+  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';loadCrowns();gStart();}
   catch(e){onState='error';onErr=String(e&&e.message||e);console.warn('Online unavailable:',e)}
   render();
 }
 
 /* ================= crowns ================= */
-const CROWNBOARDS=['cp-1','cp-2','cp-3','vs'];
+const CROWNBOARDS=['cp-1','cp-2','cp-3','torts-1','torts-2','torts-3','k-1','k-2','k-3','vs'];
 let CROWNS={};
 const crownN=id=>Math.min(3,CROWNS[id]||0);
 const CROWNC=['','#ffd84a','#6ad6ff','#ff6ad5'];
@@ -162,13 +162,42 @@ function genQ(t,used){
   }
 }
 
+/* ================= campus chat (home screen) ================= */
+let gPend={},GCHAT=[],GNODE=null,gOff=null,lastGT=-1e9,lastGText='',lastInvT=-1e9;
+function gStart(){if(!ON||gOff)return;ON.gchatPrune().catch(()=>{});gOff=ON.gchatWatch(m=>{if(GCHAT.some(x=>x.key===m.key))return;GCHAT.push(m);if(GCHAT.length>80)GCHAT.shift();gAppend(m)})}
+const muted=()=>S.muted||(S.muted=[]);
+function gLine(c){
+  if(c.uid&&muted().includes(c.uid))return '';
+  const who=`<button class="gname" data-act="gmute" data-v="${esc(c.uid||'')}" title="Mute this player" style="color:${esc(c.c||'#fff')}">${nm(c.n)}</button>${c.uid===ME?'':''}`;
+  if(c.inv&&/^SPUD-[A-Z0-9]{4}$/.test(c.inv))return `<div class="ginv">${who} is hosting a lobby <button class="btn sm" data-act="joinpub" data-v="${esc(c.inv)}" id="gj-${esc(c.key||c.inv)}">JOIN ${esc(c.inv)}</button></div>`;
+  if(c.cr){const n=Math.min(+c.cr||0,Object.keys(CROWNS).length?crownN(c.uid):0);return n>0?`<div class="emo">${who} <span class="crownemo">${crownSvg(n)}</span><span class="dim">${esc(CROWNNAME[n].toUpperCase())}</span></div>`:''}
+  if(c.e&&EMO[c.e])return `<div class="emo">${who} <span class="em">${EMO[c.e].i}</span><span class="dim">${esc(EMO[c.e].t)}</span></div>`;
+  return `<div>${who}: ${esc(censor(c.t||''))}</div>`}
+function gAppend(m){const l=GNODE&&GNODE.querySelector('#gchatlog');if(!l)return;const near=l.scrollHeight-l.scrollTop-l.clientHeight<60;const ph=l.querySelector('.ph');if(ph)ph.remove();l.insertAdjacentHTML('beforeend',gLine(m));if(near||m.uid===ME)l.scrollTop=l.scrollHeight}
+function gDraw(){const l=GNODE&&GNODE.querySelector('#gchatlog');if(!l)return;l.innerHTML=GCHAT.map(gLine).join('')||'<div class="sys ph">No messages yet. Say hi, or host a game.</div>';l.scrollTop=l.scrollHeight;const m=GNODE.querySelector('#gmuted');if(m)m.innerHTML=muted().length?`${muted().length} muted · <button class="lnk" data-act="gunmute">unmute all</button>`:'tap a name to mute'}
+function gMount(){
+  const slot=document.getElementById('gslot');if(!slot)return;
+  if(onState!=='on'){slot.innerHTML=`<div class="gchat off"><div class="chathd"><span>CAMPUS CHAT</span></div><p class="dim" style="font-size:15px;margin:6px 0">${onState==='connecting'?'Connecting…':'Campus chat needs online play. See SETUP.md.'}</p></div>`;return}
+  if(!GNODE){GNODE=document.createElement('div');GNODE.className='gchat';
+    GNODE.innerHTML=`<div class="chathd"><span>CAMPUS CHAT · moderated</span><span id="gmuted"></span></div><div class="chat" id="gchatbox"><div class="log" id="gchatlog"></div><div class="emotes" id="gemotes" hidden></div><form id="gchatf" autocomplete="off"><button type="button" class="emob" data-act="gemotes" id="gemob" aria-label="Emotes" title="Emotes">☺</button><input id="gchatin" maxlength="140" placeholder="talk to classmates, find a game…" aria-label="Campus chat message"><button type="submit" id="gchatsend">SEND</button></form></div><div class="row" style="margin-top:8px"><button class="btn sm gold" data-act="ghost" id="ghost">📣 HOST A PUBLIC GAME &amp; INVITE</button></div><p class="dim" style="font-size:13px;margin:6px 0 0">Be decent. Profanity and slurs are filtered automatically; tap a name to mute someone.</p>`;
+    slot.appendChild(GNODE);gDraw();return}
+  slot.appendChild(GNODE);gDraw();
+}
+function gOK(t){const n=performance.now();if(n-lastGT<1500)return false;if(t&&t===lastGText&&n-lastGT<30000)return false;lastGT=n;lastGText=t||'';return true}
+function gSend(extra){if(!ON||!prof().name){go('profile');return}ON.gchatSend({n:meP().n,c:meP().c,...extra}).catch(()=>{})}
+function gEmotePanel(){const el=GNODE&&GNODE.querySelector('#gemotes');if(!el)return;const cn=crownN(ME);
+  el.innerHTML=EMOTES.map(e=>`<button type="button" class="emo-b" data-act="gemote" data-v="${e.id}" id="gemo-${e.id}" title="${esc(e.t)}"><span>${e.i}</span><small>${esc(e.t)}</small></button>`).join('')+
+  `<button type="button" class="emo-b crownb" data-act="gemote" data-v="crown" id="gemo-crown" ${cn?'':'disabled'} title="${cn?'Show off your crown':'Hold #1 on a global leaderboard to unlock'}"><span>${crownSvg(cn||1)}</span><small>${cn?'MY CROWN':'crown holders'}</small></button>`}
+function postInvite(){if(!LOBBY||!LOBBY.net||!ON)return false;const n=performance.now();if(n-lastInvT<30000)return false;lastInvT=n;gSend({inv:LOBBY.code});return true}
+document.addEventListener('submit',e=>{if(e.target.id!=='gchatf')return;e.preventDefault();const i=document.getElementById('gchatin'),t=i.value.trim().slice(0,140);if(!t||!gOK(t))return;i.value='';gSend({t:censor(t)})});
+
 /* ================= views & state ================= */
 const app=document.getElementById('app');
 let V='title',menuI=0,dlg=null,G=null,tick=null,last=0,confirmReset=false,flavI=Math.floor(Math.random()*FLAV.length);
 let WSEL='cp',BOARD='story',BW='cp',BF=0,BOARDDATA={},LOBBY=null,CHAT=[],JOINERR='',unwatch=null;
 function go(v){V=v;menuI=0;confirmReset=false;render()}
 function render(){
-  if(V==='title')app.innerHTML=titleV();
+  if(V==='title'){app.innerHTML=titleV();gMount()}
   else if(V==='profile')app.innerHTML=profileV();
   else if(V==='worlds')app.innerHTML=worldsV();
   else if(V==='floors')app.innerHTML=floorsV();
@@ -179,6 +208,8 @@ function render(){
   else if(V==='boards')app.innerHTML=boardsV();
   else if(V==='records')app.innerHTML=recordsV();
   else if(V==='settings')app.innerHTML=settingsV();
+  if(V!=='boards'&&boardOff)stopBoardWatch();
+  if(V==='vs'&&ON&&!pubOff){pubOff=ON.watchPub(l=>{PUBS=l;drawPubs()})}else if(V!=='vs'&&pubOff){pubOff();pubOff=null;PUBS=null}
 }
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
 const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
@@ -186,7 +217,7 @@ function titleV(){
   return `<div class="title"><div class="potato">${SPUD()}</div><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
   <p class="dim" style="font-size:15px">${prof().name?`Signed in as ${crownN(ME)?crownSvg(crownN(ME),'inline'):''}<span class="gold">${esc(prof().name)}</span> · `:'Make a profile before you play · '}${onlineBadge()}</p></div>
-  <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p>`;
+  <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p><div id="gslot"></div>`;
 }
 function profileV(){
   const p=prof();
@@ -220,8 +251,8 @@ function dlgV(){
 }
 
 /* ================= game engine ================= */
-const mkPlayer=x=>({id:x.id,n:x.n,s:x.s,c:x.c,cpu:x.cpu||null,remote:!!x.remote,lives:5,run:0,streak:false,alive:true,right:0,ans:0,score:0,redeem:false});
-const meP=()=>({id:ME,n:prof().name||'YOU',s:ICONS[prof().icon],c:COLORS[prof().color]});
+const mkPlayer=x=>({id:x.id,n:x.n,s:x.s,c:x.c,cpu:x.cpu||null,remote:!!x.remote,lives:x.lives||5,maxL:x.lives||5,run:0,streak:false,alive:true,right:0,ans:0,score:0,redeem:false});
+const meP=()=>({id:ME,n:censor(prof().name||'YOU'),s:ICONS[prof().icon],c:COLORS[prof().color]});
 function newG(o){return {players:[],turn:0,topic:null,recent:[],turnsLeft:0,q:null,phase:'topic',t:0,timer:S.settings.time*1000,used:new Set(),round:0,elim:[],narr:{t:'',c:''},bark:null,paused:false,spectate:false,maxRun:0,startT:performance.now(),turnId:0,inputs:{},...o}}
 function startStory(w,f){
   const fl=WBY[w].floors[f];
@@ -245,7 +276,7 @@ function bark(p,kind){if(!p.cpu||Math.random()>.65)return;const L=p.cpu[kind];if
 function startTurn(){
   const p=G.players[G.turn];G.turnId++;
   if(!G.q||G.q.solved)G.q=Object.assign(genQ(G.topic,G.used),{elim:[],solved:false,passes:0});
-  const base=G.q.hypo?20000:S.settings.time*1000;G.fastT=p.streak;G.timer=p.streak?Math.max(5000,base-5000):base;
+  const base=G.q.hypo?20000:(G.time||S.settings.time)*1000;G.fastT=p.streak;G.timer=p.streak?Math.max(5000,base-5000):base;
   G.phase='ask';G.t=G.timer;G.pickI=null;G.res=null;G.cpuPlan=null;G.pop=null;
   if(p.cpu){
     const left=G.q.opts.map((o,i)=>i).filter(i=>!G.q.elim.includes(i)),ci=G.q.opts.findIndex(o=>o.ok);
@@ -301,7 +332,7 @@ function endGame(){
     if(won){S.wins[key]=(S.wins[key]||0)+1;S.prog[w]=Math.max(S.prog[w],Math.min(3,f+2))}
     S.best[key]=Math.max(S.best[key]||0,me.score);
     const e=entry(me,place,{players:G.players.length}),rank=lbLocal(w+'-'+(f+1),e);
-    if(ON&&w==='cp')ON.submit('cp-'+(f+1),e).then(loadCrowns).catch(()=>{});
+    if(ON){const bk=w+'-'+(f+1),sc=e.score;ON.submit(bk,e).then(()=>{loadCrowns();return ON.top(bk,25)}).then(rows=>{if(!rows||!G||!G.result)return;const above=rows.filter(x=>x.score>sc).length;G.result.grank=above<rows.length||rows.length<25?above+1:-1;G.result.gtot=rows.length;if(V==='game'&&G.phase==='over')render()}).catch(()=>{})}
     save();G.result={won,place,acc:me.ans?Math.round(me.right/me.ans*100):0,right:me.right,score:me.score,rank};
     startDlg(won?fl.win:fl.lose,()=>{V='game';G.phase='over';render()});return;
   }
@@ -338,18 +369,20 @@ function seatPos(i,n){const a=Math.PI/2+i*2*Math.PI/n;return [50+38*Math.cos(a),
 
 /* ---------- game view (works for local games and for online clients) ---------- */
 function gameV(g){
+  const watching=g.client&&!g.players.some(isMe)&&g.phase!=='over';
+  if(g.client&&!g.players.length)return `<div class="box"><h2>JOINING THE MATCH…</h2><p class="vt dim">Grabbing a seat in the gallery. The potato is already moving.</p><button class="back" data-act="leavelobby" id="back">◂ leave</button></div>`;
   const n=g.players.length,act=g.players[g.turn]||g.players[0],q=g.q;
-  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?'shield':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${esc(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${[0,1,2,3,4].map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
+  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?'shield':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
   const [sx,sy]=seatPos(g.turn,n),px=50+(sx-50)*.55,py=50+(sy-50)*.55;
   let bk='';if(g.bark){const bi=g.players.findIndex(p=>p.id===g.bark.id);if(bi>=0){const [bx,by]=seatPos(bi,n),up=by<50;bk=`<div class="bark ${up?'dn':''}" id="bark" style="left:${Math.min(78,Math.max(22,bx))}%;top:${up?by+14:by-9}%">${esc(g.bark.text)}</div>`}}
   let pop='';if(g.pop){const pi=g.players.findIndex(p=>p.id===g.pop.id);if(pi>=0){const [ox,oy]=seatPos(pi,n);pop=`<div class="ptpop" style="left:${ox}%;top:${oy-6}%">+${g.pop.pts}${g.pop.bonus&&g.pop.bonus.length?`<small>${g.pop.bonus.join(' + ')} ×1.25</small>`:''}</div>`}}
   const banner=g.phase==='topic'&&g.topic?`<div class="banner"><div><small>ROUND ${g.round} · ${esc(g.topic.course).toUpperCase()}${g.topic.ch?' · CH. '+esc(g.topic.ch):''}</small><b>${esc(g.topic.name).toUpperCase()}</b><small>two full rotations</small></div></div>`:g.paused?`<div class="banner"><div><b>PAUSED</b><small>The potato waits. Impatiently.</small></div></div>`:'';
   const ring=`<div class="ring">${seats}${pop}<div class="spud" id="spud" style="left:${px}%;top:${py}%">${SPUD()}</div>${bk}${banner}</div>`;
   const where=g.mode==='story'?`${WBY[g.world].name} · FLOOR ${g.floor+1}`:`VS${g.code?' · '+esc(g.code):''}${g.net?' · ONLINE':' · BOTS'}`;
-  const top=`<div class="top"><div class="topic"><small>TOPIC · ${g.topic?esc(g.topic.course)+(g.topic.ch?' · coursebook ch. '+esc(g.topic.ch):''):''}</small><b>${g.topic?esc(g.topic.name):''}</b></div>${g.client||g.net?'':`<button class="back" style="min-height:40px;margin:0" data-act="pause" id="pause">${g.paused?'▶ resume':'❙❙ pause'}</button>`}</div><div class="meta">${where} · ROUND ${g.round} · ${Math.max(0,g.turnsLeft)} turns left in this topic</div>`;
+  const top=`${watching?`<div class="watchbar">👀 SPECTATING · chat and emotes are open${LOBBY&&LOBBY.spec?'':' · you’re seated for the next match'}</div>`:''}<div class="top"><div class="topic"><small>TOPIC · ${g.topic?esc(g.topic.course)+(g.topic.ch?' · coursebook ch. '+esc(g.topic.ch):''):''}</small><b>${g.topic?esc(g.topic.name):''}</b></div>${g.client||g.net?'':`<button class="back" style="min-height:40px;margin:0" data-act="pause" id="pause">${g.paused?'▶ resume':'❙❙ pause'}</button>`}</div><div class="meta">${where} · ROUND ${g.round} · ${Math.max(0,g.turnsLeft)} turns left in this topic</div>`;
   let box='';
   if(g.phase==='over'&&g.mode!=='story')box=vsResultV(g);
-  else if(g.phase==='over'){const r=g.result,w=WBY[g.world];box=`<div class="box"><h2 class="${r.won?'gold':''}">${r.won?'FLOOR CLEARED':`ELIMINATED · ${ordinal(r.place)} PLACE`}</h2><p class="code" style="margin:0">${r.score} PTS</p><p class="vt">${r.right} correct · ${r.acc}% accuracy · best run ${g.maxRun}${r.rank>=0?` · <span class="gold">#${r.rank+1} on this floor’s leaderboard</span>`:''}${ON&&g.world==='cp'?' · sent to the online board':''}</p><div class="row"><button class="btn gold" data-act="floor" data-v="${g.floor}" id="again">PLAY AGAIN</button>${r.won&&g.floor<2?`<button class="btn" data-act="floor" data-v="${g.floor+1}" id="nextfloor">NEXT FLOOR</button>`:''}<button class="btn" data-act="world" data-v="${g.world}" id="quit">FLOOR SELECT</button></div></div>`}
+  else if(g.phase==='over'){const r=g.result,w=WBY[g.world];box=`<div class="box"><h2 class="${r.won?'gold':''}">${r.won?'FLOOR CLEARED':`ELIMINATED · ${ordinal(r.place)} PLACE`}</h2><p class="code" style="margin:0">${r.score} PTS</p><p class="vt">${r.right} correct · ${r.acc}% accuracy · best run ${g.maxRun}${r.rank>=0?` · <span class="gold">#${r.rank+1} on this floor’s leaderboard</span>`:''}${ON?(r.grank>0?` · <span class="gold">#${r.grank} globally</span> on this floor`:r.grank===-1?' · outside the global top 25 for now':' · sent to the global board'):''}</p><div class="row"><button class="btn gold" data-act="floor" data-v="${g.floor}" id="again">PLAY AGAIN</button>${r.won&&g.floor<2?`<button class="btn" data-act="floor" data-v="${g.floor+1}" id="nextfloor">NEXT FLOOR</button>`:''}<button class="btn" data-act="world" data-v="${g.world}" id="quit">FLOOR SELECT</button></div></div>`}
   else if(g.phase==='dead')box=`<div class="box"><h2>YOU ARE OUT</h2><p class="vt">${pick(NARR.elimYou)}</p><div class="row"><button class="btn gold" data-act="spectate" id="spect">WATCH THE REST (FAST)</button>${g.mode==='story'?'<button class="btn" data-act="forfeit" id="forfeit">GO HOME</button>':''}</div></div>`;
   else if(q&&g.phase!=='topic'){
     const yours=isMe(act)&&g.phase==='ask'&&!g.spectate&&!(g.client&&g.sentTurn===g.turnId),rev=g.phase==='reveal';
@@ -366,23 +399,45 @@ function gameV(g){
 function vsResultV(g){
   const r=g.result,me=g.players.find(isMe),st=r.st.map(id=>g.players.find(p=>p.id===id)).filter(Boolean),place=st.indexOf(me)+1;
   const host=!g.client;
-  return `<div class="box"><h2 class="${place===1?'gold':''}">${place===1?'LAST ONE STANDING':`${ordinal(place)} PLACE`}</h2><p class="code" style="margin:0">${me?me.score:0} PTS</p>${g.myRank>=0?`<p class="gold" style="margin:4px 0">#${g.myRank+1} on your VS board${g.net&&ON?' · sent to the online VS Leaderboard':''}</p>`:''}
-  <table class="lbt" style="margin:10px 0"><tr><td>#</td><td>PLAYER</td><td>POINTS</td></tr>${st.map((p,i)=>`<tr class="${isMe(p)?'me':''}"><td>${i+1}</td><td class="nm">${spr(p.s,p.c)}${esc(p.n)}${p.cpu?' (bot)':''}</td><td>${p.score}</td></tr>`).join('')}</table>
+  return `<div class="box"><h2 class="${place===1?'gold':''}">${!me?'MATCH OVER':place===1?'LAST ONE STANDING':`${ordinal(place)} PLACE`}</h2>${me?`<p class="code" style="margin:0">${me.score} PTS</p>`:'<p class="vt dim" style="margin:0">You watched this one. You’re in the next match if there’s a seat.</p>'}${g.myRank>=0?`<p class="gold" style="margin:4px 0">#${g.myRank+1} on your VS board${g.net&&ON?' · sent to the online VS Leaderboard':''}</p>`:''}
+  <table class="lbt" style="margin:10px 0"><tr><td>#</td><td>PLAYER</td><td>POINTS</td></tr>${st.map((p,i)=>`<tr class="${isMe(p)?'me':''}"><td>${i+1}</td><td class="nm">${spr(p.s,p.c)}${nm(p.n)}${p.cpu?' (bot)':''}</td><td>${p.score}</td></tr>`).join('')}</table>
   <p class="dim" style="font-size:14px">Placement is survival order. Points decide the leaderboard.</p><div class="row">${host?'<button class="btn gold" data-act="tolobby" id="tolobby">BACK TO LOBBY</button>':'<span class="vt dim">Waiting for the host to reopen the lobby…</span>'}<button class="btn" data-act="board" data-v="vs" id="seeboard">VS LEADERBOARD</button></div></div>`;
 }
+
+/* ================= chat filter ================= */
+// Words matched anywhere inside a word (fucking, bullshit, ...).
+const BAD_ANY=['fuck','fuk','fck','shit','cunt','bitch','bastard','asshole','motherf','whore','slut','pussy','twat','wank','jizz','skank','nigg','nigga','faggot','fagot','tranny','wetback','beaner','raghead','towelhead','dumbass','jackass','smartass','badass','dipshit','bullshit'];
+// Words matched only as whole words (plus common endings), so "class", "spicy", "cocktail", "Dickens" stay clean.
+const BAD_WORD=['ass','dick','cock','fag','fags','prick','piss','spic','spick','chink','gook','kike','coon','dyke','paki','retard','retards','retarded','tits','titties','nazi'];
+const LEET={a:'a4@',b:'b8',c:'c(',e:'e3',g:'g9',i:'i1!|',l:'l1|',o:'o0',s:'s5$',t:'t7+',u:'uv',k:'k'};
+const lp=w=>[...w].map(ch=>`[${(LEET[ch]||ch).replace(/[\]\\^-]/g,'\\$&')}]+`).join('[\\s._*\\-]*');
+const BAD_RX=new RegExp(`(${BAD_ANY.map(lp).join('|')})[a-z]*|(?<![a-z0-9])(${BAD_WORD.map(w=>[...w].map(ch=>`[${(LEET[ch]||ch).replace(/[\]\\^-]/g,'\\$&')}]+`).join('')).join('|')})(s|es|ed|er|ers|ing|head|heads|hole|holes|hat|hats|wipe)?(?![a-z0-9])`,'gi');
+function censor(t){return String(t==null?'':t).replace(BAD_RX,m=>m[0]+'*'.repeat(Math.max(1,m.length-1)))}
+const nm=x=>esc(censor(x));
+const EMOTES=[
+  {id:'wave',i:'👋',t:'hi!'},{id:'gg',i:'🤝',t:'GG'},{id:'hot',i:'🔥',t:'HOT POTATO!'},{id:'spud',i:'🥔',t:'spud.'},
+  {id:'obj',i:'🙋',t:'OBJECTION!'},{id:'sus',i:'✅',t:'Sustained.'},{id:'over',i:'❌',t:'Overruled!'},{id:'think',i:'🤔',t:'hmm…'},
+  {id:'lol',i:'😂',t:'lol'},{id:'gasp',i:'😱',t:'!!!'},{id:'clap',i:'👏',t:'nice!'},{id:'cry',i:'😭',t:'my outline…'}];
+const EMO=Object.fromEntries(EMOTES.map(e=>[e.id,e]));
+let lastChatT=-1e9;
 
 /* ================= chat ================= */
 function withChat(html,on,cls){
   if(!on){app.innerHTML=html;return}
   let m=document.getElementById('main'),c=document.getElementById('chatbox');
-  if(!m||!c||c.dataset.cls!==cls){app.innerHTML=`<div id="main"></div><div class="chathd"><span>CHAT${LOBBY?' · '+esc(LOBBY.code):''}</span><span>bots are labeled</span></div><div class="chat ${cls}" id="chatbox" data-cls="${cls}"><div class="log" id="chatlog"></div><form id="chatf" autocomplete="off"><input id="chatin" maxlength="140" placeholder="say something…" aria-label="Chat message"><button type="submit" id="chatsend">SEND</button></form></div>`;m=document.getElementById('main');drawChat()}
+  if(!m||!c||c.dataset.cls!==cls){app.innerHTML=`<div id="main"></div><div class="chathd"><span>CHAT${LOBBY?' · '+esc(LOBBY.code):''}</span><span>${LOBBY&&LOBBY.net?`${Object.keys(LOBBY.specs||{}).length?Object.keys(LOBBY.specs).length+' watching · ':''}`:''}bots are labeled</span></div><div class="chat ${cls}" id="chatbox" data-cls="${cls}"><div class="log" id="chatlog"></div><div class="emotes" id="emotes" hidden></div><form id="chatf" autocomplete="off"><button type="button" class="emob" data-act="emotes" id="emob" aria-label="Emotes" title="Emotes">☺</button><input id="chatin" maxlength="140" placeholder="say something…" aria-label="Chat message"><button type="submit" id="chatsend">SEND</button></form></div>`;m=document.getElementById('main');drawChat()}
   m.innerHTML=html;
 }
-function chatLine(c){return c.sys?`<div class="sys">${esc(c.t)}</div>`:`<div><b style="color:${esc(c.c)}">${esc(c.n)}</b>${c.bot?'<span class="bot">BOT</span>':''}: ${esc(c.t)}</div>`}
+function chatLine(c){
+  if(c.sys)return `<div class="sys">${esc(c.t)}</div>`;
+  const who=`<b style="color:${esc(c.c)}">${nm(c.n)}</b>${c.bot?'<span class="bot">BOT</span>':''}`;
+  if(c.cr){const n=Math.min(+c.cr||0,c.uid&&Object.keys(CROWNS).length?crownN(c.uid):3);if(n>0)return `<div class="emo">${who} <span class="crownemo">${crownSvg(n)}</span><span class="dim">${esc(CROWNNAME[n].toUpperCase())}</span></div>`;return ''}
+  if(c.e&&EMO[c.e])return `<div class="emo">${who} <span class="em">${EMO[c.e].i}</span><span class="dim">${esc(EMO[c.e].t)}</span></div>`;
+  return `<div>${who}: ${esc(censor(c.t))}</div>`}
 function drawChat(){const l=document.getElementById('chatlog');if(!l)return;l.innerHTML=CHAT.map(chatLine).join('');l.scrollTop=l.scrollHeight}
 function chatPush(c){CHAT.push(c);if(CHAT.length>150)CHAT.shift();const l=document.getElementById('chatlog');if(l){l.insertAdjacentHTML('beforeend',chatLine(c));l.scrollTop=l.scrollHeight}}
 function chatSys(t){const c={sys:true,t};if(LOBBY&&LOBBY.net){if(LOBBY.host)ON.chat(LOBBY.code,{uid:ME,sys:true,t,n:'',c:''})}else chatPush(c)}
-function chatSend(p,t,bot){const c={uid:ME,n:p.n,c:p.c,t:String(t).slice(0,140),bot:!!bot};if(LOBBY&&LOBBY.net)ON.chat(LOBBY.code,c).catch(()=>{});else chatPush(c)}
+function chatSend(p,t,bot,extra){const c={uid:ME,n:p.n,c:p.c,t:censor(String(t).slice(0,140)),bot:!!bot,...(extra||{})};if(LOBBY&&LOBBY.net)ON.chat(LOBBY.code,c).catch(()=>{});else chatPush(c)}
 function botReply(t){
   if(LOBBY&&LOBBY.net&&!LOBBY.host)return;
   const bots=G&&G.mode!=='story'&&V==='game'?G.players.filter(p=>p.cpu&&p.alive):LOBBY?Object.values(LOBBY.slots).filter(x=>x.bot):[];
@@ -390,52 +445,87 @@ function botReply(t){
   const b=pick(bots),low=t.toLowerCase(),L=/\b(hi|hey|hello|yo|sup)\b/.test(low)?BOTCHAT.hi:/\bgg\b|good game/.test(low)?BOTCHAT.gg:/law|tort|contract|jurisdiction|object|rule|erie|venue/.test(low)?BOTCHAT.law:BOTCHAT.any;
   setTimeout(()=>chatSend(b,pick(L),true),700+Math.random()*1500);
 }
-document.addEventListener('submit',e=>{if(e.target.id!=='chatf')return;e.preventDefault();const i=document.getElementById('chatin'),t=i.value.trim().slice(0,140);if(!t)return;i.value='';chatSend(meP(),t,false);if(!(LOBBY&&LOBBY.net))botReply(t)});
+function chatOK(){const n=performance.now();if(n-lastChatT<700)return false;lastChatT=n;return true}
+document.addEventListener('submit',e=>{if(e.target.id!=='chatf')return;e.preventDefault();const i=document.getElementById('chatin'),t=i.value.trim().slice(0,140);if(!t||!chatOK())return;i.value='';chatSend(meP(),t,false);if(!(LOBBY&&LOBBY.net))botReply(t)});
+function emotePanel(){const el=document.getElementById('emotes');if(!el)return;const cn=crownN(ME);
+  el.innerHTML=EMOTES.map(e=>`<button type="button" class="emo-b" data-act="emote" data-v="${e.id}" id="emo-${e.id}" title="${esc(e.t)}"><span>${e.i}</span><small>${esc(e.t)}</small></button>`).join('')+
+  `<button type="button" class="emo-b crownb" data-act="emote" data-v="crown" id="emo-crown" ${cn?'':'disabled'} title="${cn?'Show off your crown':'Hold #1 on a global leaderboard to unlock'}"><span>${cn?crownSvg(cn):crownSvg(1)}</span><small>${cn?'MY CROWN':'crown holders'}</small></button>`}
+function sendEmote(id){if(!chatOK())return;const el=document.getElementById('emotes');if(el)el.hidden=true;
+  if(id==='crown'){const n=crownN(ME);if(!n)return;chatSend(meP(),'',false,{cr:n});return}
+  if(!EMO[id])return;chatSend(meP(),'',false,{e:id})}
 
 /* ================= VS: lobbies (bots offline, or online via Firebase) ================= */
 function newCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return 'SPUD-'+Array.from({length:4},()=>a[Math.floor(Math.random()*a.length)]).join('')}
+let PUBS=null,pubOff=null;
+const PUBFRESH=6*3600*1000;
+function pubListV(){
+  if(PUBS===null)return '<p class="dim" style="font-size:15px">Looking for lobbies…</p>';
+  const L=PUBS.filter(p=>p&&p.code&&(!p.ts||ON.now()-p.ts<PUBFRESH));
+  if(!L.length)return '<p class="dim" style="font-size:15px">No public lobbies right now. Make one!</p>';
+  return `<div class="publist">${L.map(p=>{const full=p.n>=p.max,play=p.st==='playing';return `<div class="pubrow"><div class="pn">${crownN(p.host)?crownSvg(crownN(p.host),'inline'):''}<b>${nm(p.hn)}</b><small>${esc(p.code)}</small></div><div class="pc">${p.n}/${p.max}</div><div class="ps ${play?'bad':'good'}">${play?'IN GAME':'WAITING'}</div><button class="btn sm" data-act="joinpub" data-v="${esc(p.code)}" id="jp-${esc(p.code)}" ${full&&!play?'disabled':''}>${play?'WATCH':full?'FULL':'JOIN'}</button></div>`}).join('')}</div>`;
+}
+function drawPubs(){const el=document.getElementById('publist');if(el)el.innerHTML=pubListV()}
 function vsV(){
   const on=onState==='on';
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>VS MODE</h2><p class="vt">Up to 8 players. One potato. Civil Procedure only, for now.</p>
   <h3 style="margin-top:14px">ONLINE ${onlineBadge()}</h3>
-  ${on?`<div class="row" style="margin:10px 0"><button class="btn gold" data-act="mklobby" data-v="net" id="mknet">CREATE ONLINE LOBBY</button></div>
+  ${on?`<div class="row" style="margin:10px 0"><button class="btn gold" data-act="mklobby" data-v="pub" id="mkpub">CREATE PUBLIC LOBBY</button><button class="btn" data-act="mklobby" data-v="net" id="mknet">CREATE PRIVATE LOBBY</button></div>
+  <h3 style="margin-top:16px">PUBLIC LOBBIES</h3><div id="publist">${pubListV()}</div>
+  <h3 style="margin-top:16px">JOIN WITH A CODE</h3>
   <form id="joinf" class="row" style="margin:8px 0" autocomplete="off"><input type="text" id="joincode" maxlength="9" placeholder="SPUD-XXXX" style="max-width:220px" aria-label="Lobby code"><button class="btn" type="submit" id="join">JOIN</button></form>${JOINERR?`<p class="bad" style="margin:4px 0">${esc(JOINERR)}</p>`:''}`
   :`<p class="dim" style="font-size:15px;margin:8px 0">${onState==='error'?'Couldn’t reach the online service: '+esc(onErr):onState==='connecting'?'Connecting…':'Online play isn’t set up for this copy of the game. See SETUP.md to turn it on.'}</p>`}
   <h3 style="margin-top:18px">PRACTICE</h3><div class="row" style="margin:10px 0"><button class="btn" data-act="mklobby" data-v="bots" id="mklobby">LOBBY WITH BOTS (OFFLINE)</button><button class="btn" data-act="board" data-v="vs" id="vsboard">VS LEADERBOARD</button></div>
   <p class="dim" style="font-size:14px;margin:0">Offline bot matches count toward your personal VS board only. Online matches count toward the global VS Leaderboard.</p></div>`;
 }
 function lobbySlotsArr(){return Object.entries(LOBBY.slots).map(([id,x])=>({id,...x})).sort((a,b)=>(a.order||0)-(b.order||0))}
+const DEFCFG=()=>({lives:3,time:S.settings.time,max:8,pub:false});
+const lcfg=()=>LOBBY?{...DEFCFG(),...(LOBBY.net?(LOBBY.meta&&LOBBY.meta.cfg)||{}:LOBBY.cfg||{})}:DEFCFG();
 async function mkLobby(kind){
-  if(kind==='net'){
-    if(!ON)return;let code,ok=false;for(let k=0;k<5&&!ok;k++){code=newCode();ok=await ON.createRoom(code,{...meP(),id:undefined,bot:false})}
+  if(kind==='net'||kind==='pub'){
+    if(!ON)return;let code,ok=false;for(let k=0;k<5&&!ok;k++){code=newCode();ok=await ON.createRoom(code,{...meP(),id:undefined,bot:false,ready:true})}
     if(!ok){JOINERR='Couldn’t create a lobby. Try again.';render();return}
-    LOBBY={code,net:true,host:true,slots:{}};CHAT=[];watchRoom();chatSys(`Lobby ${code} created. Share the code with your classmates.`);V='lobby';render();return;
+    const cfg={...DEFCFG(),pub:kind==='pub'};await ON.setMeta(code,{cfg});
+    LOBBY={code,net:true,host:true,slots:{},specs:{},meta:{host:ME,status:'lobby',cfg}};CHAT=[];watchRoom();syncPub();
+    chatSys(kind==='pub'?`Public lobby ${code} created. It’s listed in VS MODE for anyone to join.`:`Private lobby ${code} created. Share the code with your classmates.`);V='lobby';render();return;
   }
-  LOBBY={code:newCode(),net:false,host:true,slots:{[ME]:{n:meP().n,s:meP().s,c:meP().c,order:0}}};CHAT=[];chatSys(`Practice lobby ${LOBBY.code} created. Add some bots.`);V='lobby';render();
+  LOBBY={code:newCode(),net:false,host:true,cfg:DEFCFG(),slots:{[ME]:{n:meP().n,s:meP().s,c:meP().c,order:0,ready:true}}};CHAT=[];chatSys(`Practice lobby ${LOBBY.code} created. Add some bots.`);V='lobby';render();
 }
 async function joinLobby(code){
-  JOINERR='';code=code.trim().toUpperCase();if(!/^SPUD-[A-Z0-9]{4}$/.test(code)){JOINERR='Codes look like SPUD-AB12.';render();return}
-  const err=await ON.joinRoom(code,{n:meP().n,s:meP().s,c:meP().c,bot:false});
-  if(err){JOINERR=err;render();return}
-  LOBBY={code,net:true,host:false,slots:{}};CHAT=[];watchRoom();V='lobby';render();
+  JOINERR='';code=code.trim().toUpperCase();if(!/^SPUD-[A-Z0-9]{4}$/.test(code)){JOINERR='Codes look like SPUD-AB12.';render();return}if(!prof().name){go('profile');return}
+  const r=await ON.joinRoom(code,{n:meP().n,s:meP().s,c:meP().c,bot:false});
+  if(r.err){JOINERR=r.err;if(V!=='vs')go('vs');else render();return}
+  LOBBY={code,net:true,host:false,spec:!!r.spec,slots:{},specs:{}};CHAT=[];V='lobby';watchRoom();if(V==='lobby')render();
+  chatSend(meP(),'',false,{e:'wave'});
 }
+let lastPubSig='';
+function syncPub(){
+  const L=LOBBY;if(!L||!L.net||!L.host||!ON)return;const cfg=lcfg();
+  if(!cfg.pub){if(lastPubSig!=='off'){lastPubSig='off';ON.setPub(L.code,null).catch(()=>{})}return}
+  const e={hn:censor(prof().name||'HOST'),n:Object.keys(L.slots||{}).length,max:cfg.max,st:L.meta&&L.meta.status==='playing'?'playing':'lobby',w:Object.keys(L.specs||{}).length};
+  const sig=JSON.stringify(e);if(sig===lastPubSig)return;lastPubSig=sig;ON.setPub(L.code,e).catch(()=>{});
+}
+function enterClientGame(L){G={client:true,net:true,mode:'vs',code:L.code,players:[],q:null,phase:'topic',turn:0,round:0,turnsLeft:0,timer:15000,cT:0,narr:{t:'',c:''}};V='game';startLoop();if(L.lastSt)applyState(L.lastSt);else render()}
 function watchRoom(){
-  if(unwatch)unwatch();const L=LOBBY;
+  if(unwatch)unwatch();const L=LOBBY;lastPubSig='';
   unwatch=ON.watch(L.code,{
-    meta:m=>{if(LOBBY!==L)return;if(!m){leaveLobby(true);return}L.meta=m;
-      if(!L.host){if(m.status==='playing'&&V!=='game'){G={client:true,net:true,mode:'vs',code:L.code,players:[],q:null,phase:'topic',turn:0,round:0,turnsLeft:0,timer:15000,cT:0,narr:{t:'',c:''}};V='game';startLoop();render()}
-        else if(m.status==='lobby'&&V==='game'){stopLoop();G=null;V='lobby';render()}}},
-    slots:s=>{if(LOBBY!==L)return;L.slots=s;if(G&&G.net&&!G.client){G.players.forEach(p=>{if(p.remote&&!s[p.id])p.gone=true})}if(V==='lobby')render()},
-    chat:c=>{if(LOBBY!==L)return;chatPush(c);if(L.host&&!c.bot&&!c.sys&&c.uid!==ME)botReply(c.t)},
-    state:L.host?null:st=>{if(LOBBY!==L||!st)return;applyState(st)},
+    meta:m=>{if(LOBBY!==L)return;if(!m){leaveLobby(true);return}const was=L.meta&&L.meta.status;L.meta=m;
+      if(L.host){syncPub();if(V==='lobby')render();return}
+      if(m.status==='playing'&&V!=='game')enterClientGame(L);
+      else if(m.status==='lobby'&&(V==='game'||was==='playing')){stopLoop();G=null;L.lastSt=null;V='lobby';render();if(L.slots[ME]&&L.slots[ME].ready)ON.patchSlot(L.code,ME,{ready:false}).catch(()=>{})}
+      else if(V==='lobby')render()},
+    slots:s=>{if(LOBBY!==L)return;L.slots=s;if(!L.host&&!L.spec&&!s[ME]&&L.meta){leaveLobby(true,'You were removed from the lobby.');return}if(L.spec&&s[ME])L.spec=false;
+      if(G&&G.net&&!G.client){G.players.forEach(p=>{if(p.remote&&!s[p.id])p.gone=true})}if(L.host)syncPub();if(V==='lobby')render()},
+    specs:s=>{if(LOBBY!==L)return;L.specs=s;if(L.host)syncPub();if(V==='lobby')render()},
+    chat:c=>{if(LOBBY!==L)return;chatPush(c);if(L.host&&!c.bot&&!c.sys&&!c.e&&!c.cr&&c.uid!==ME)botReply(c.t)},
+    state:L.host?null:st=>{if(LOBBY!==L||!st)return;L.lastSt=st;applyState(st)},
     inputs:L.host?(inp=>{if(G&&G.net)G.inputs=inp}):null
   });
 }
-async function leaveLobby(hostGone){
+async function leaveLobby(hostGone,msg){
   if(unwatch){unwatch();unwatch=null}stopLoop();
   const L=LOBBY;LOBBY=null;G=null;CHAT=[];
   if(L&&L.net&&!hostGone)await ON.leaveRoom(L.code,L.host).catch(()=>{});
-  JOINERR=hostGone?'The host closed that lobby.':'';go('vs');
+  JOINERR=msg||(hostGone?'The host closed that lobby.':'');go('vs');
 }
 function addBot(d){
   const sl=lobbySlotsArr();if(sl.length>=8)return;const used=sl.map(x=>x.id),free=BOTPOOL.filter(k=>!used.includes('bot_'+k));if(!free.length)return;
@@ -445,19 +535,37 @@ function addBot(d){
 }
 function rmBot(id){const x=LOBBY.slots[id];if(LOBBY.net)ON.setSlot(LOBBY.code,id,null);else{delete LOBBY.slots[id];render()}if(x)chatSys(`${x.n} (bot) was removed.`)}
 function lobbyV(){
-  const sl=lobbySlotsArr(),empty=8-sl.length,host=LOBBY.host;
-  const tag=x=>x.id===ME?(host?'host · you':'you'):x.bot?`bot · ${x.diff}`:(LOBBY.meta&&LOBBY.meta.host===x.id?'host':'player');
-  return `<button class="back" data-act="leavelobby" id="back">◂ leave lobby</button><div class="vsgrid"><div class="box"><div class="dim" style="font-size:14px">${LOBBY.net?'ONLINE LOBBY CODE':'PRACTICE LOBBY (OFFLINE)'}</div><div class="code">${esc(LOBBY.code)}</div><p class="dim" style="font-size:14px;margin:2px 0 12px">${LOBBY.net?'Classmates join from VS MODE with this code.':'Bots only. Create an online lobby to play with people.'} ${sl.length}/8 players.</p>
-  <div class="slots">${sl.map(x=>`<div class="slot">${withCrown(x.id,spr(x.s,x.c))}<div class="sn">${esc(x.n)}<small>${tag(x)}</small></div>${x.bot&&host?`<button class="x" data-act="rmbot" data-v="${esc(x.id)}" id="rm-${esc(x.id)}" aria-label="Remove ${esc(x.n)}">✕</button>`:''}</div>`).join('')}${empty?`<div class="slot empty">${empty} open seat${empty>1?'s':''}${LOBBY.net?': waiting for players…':''}</div>`:''}</div></div>
-  <div class="box">${host?`<h3>ADD A BOT</h3><div class="diffs" style="margin:10px 0 14px">${Object.keys(DIFF).map(d=>`<button class="chip" data-act="addbot" data-v="${d}" id="bot-${d}" ${sl.length>=8?'disabled':''}>+ ${d}</button>`).join('')}</div>`:''}
-  <h3>MATCH RULES</h3><p class="dim" style="font-size:15px;margin:6px 0 14px">Civil Procedure topics · ${S.settings.time}-second timer (${S.settings.time-5}s on a streak; hypotheticals 20s) · 5 lives${LOBBY.net&&!host?' · the host’s timer setting applies':''}.</p>
-  ${host?`<button class="btn gold" data-act="startvs" id="startvs" ${sl.length<2?'disabled':''}>START MATCH</button>${sl.length<2?'<p class="dim" style="font-size:14px">Add a bot or wait for a classmate.</p>':''}`:'<p class="vt dim">Waiting for the host to start…</p>'}</div></div>`;
+  const sl=lobbySlotsArr(),cfg=lcfg(),empty=Math.max(0,cfg.max-sl.length),host=LOBBY.host,net=LOBBY.net,spec=!!LOBBY.spec,playing=LOBBY.meta&&LOBBY.meta.status==='playing';
+  const isHostId=id=>net?(LOBBY.meta&&LOBBY.meta.host===id):id===ME;
+  const humans=sl.filter(x=>!x.bot&&!isHostId(x.id)),rdy=humans.filter(x=>x.ready).length;
+  const tag=x=>x.id===ME?(host?'host · you':'you'):x.bot?`bot · ${x.diff}`:(isHostId(x.id)?'host':'player');
+  const rtag=x=>x.bot||isHostId(x.id)?'':x.ready?'<span class="rdy on">READY</span>':'<span class="rdy">not ready</span>';
+  const nspec=Object.keys(LOBBY.specs||{}).length;
+  const chip=(k,v,label,dis)=>`<button class="chip" aria-pressed="${cfg[k]===v}" data-act="lcfg" data-k="${k}" data-v="${v}" id="cfg-${k}-${v}" ${dis?'disabled':''}>${label}</button>`;
+  const rules=`Civil Procedure topics · ${cfg.lives} li${cfg.lives>1?'ves':'fe'} each · ${cfg.time}-second timer (${cfg.time-5}s on a streak; hypotheticals 20s) · up to ${cfg.max} players`;
+  const settings=host?`<h3>LOBBY SETTINGS</h3>
+    <div class="set"><div class="lbl">LIVES PER PLAYER</div><div class="chips">${[1,2,3,4,5].map(n=>chip('lives',n,n+(n===3?' (default)':''))).join('')}</div></div>
+    <div class="set"><div class="lbl">ANSWER TIMER</div><div class="chips">${[10,15,20].map(n=>chip('time',n,n+' sec')).join('')}</div></div>
+    <div class="set"><div class="lbl">MAX PLAYERS</div><div class="chips">${[2,3,4,5,6,7,8].map(n=>chip('max',n,n,n<sl.length)).join('')}</div></div>
+    ${net?`<div class="set"><div class="lbl">VISIBILITY</div><div class="chips">${chip('pub',true,'Public (listed)')}${chip('pub',false,'Private (code only)')}</div></div>`:''}`
+    :`<h3>MATCH RULES</h3><p class="dim" style="font-size:15px;margin:6px 0 14px">${rules}. The host sets these.</p>`;
+  const mine=LOBBY.slots[ME];
+  const readyBtn=!host&&!spec&&mine?`<button class="btn ${mine.ready?'':'gold'}" data-act="ready" id="readyb">${mine.ready?'✓ READY (tap to undo)':'READY UP'}</button>`:'';
+  const seatBtn=spec&&!playing&&sl.length<cfg.max?`<button class="btn gold" data-act="takeseat" id="takeseat">TAKE A SEAT</button>`:'';
+  const status=playing?'<p class="vt gold">A match is in progress. You’re watching.</p>':spec?`<p class="vt dim">You’re spectating${sl.length>=cfg.max?'. All seats are full.':'.'}</p>`:'';
+  return `<button class="back" data-act="leavelobby" id="back">◂ leave lobby</button><div class="vsgrid"><div class="box"><div class="dim" style="font-size:14px">${net?(cfg.pub?'PUBLIC LOBBY · CODE':'PRIVATE LOBBY · CODE'):'PRACTICE LOBBY (OFFLINE)'}</div><div class="code">${esc(LOBBY.code)}</div><p class="dim" style="font-size:14px;margin:2px 0 12px">${net?(cfg.pub?'Listed under Public Lobbies in VS MODE. Anyone can join or watch.':'Classmates join from VS MODE with this code.'):'Bots only. Create an online lobby to play with people.'} ${sl.length}/${cfg.max} players${nspec?` · ${nspec} watching`:''}.</p>
+  <div class="slots">${sl.map(x=>`<div class="slot ${x.ready&&!x.bot?'isready':''}">${withCrown(x.id,spr(x.s,x.c))}<div class="sn">${nm(x.n)}<small>${tag(x)} ${rtag(x)}</small></div>${host&&x.id!==ME?`<button class="x" data-act="${x.bot?'rmbot':'kick'}" data-v="${esc(x.id)}" id="rm-${esc(x.id)}" aria-label="Remove ${nm(x.n)}">✕</button>`:''}</div>`).join('')}${empty?`<div class="slot empty">${empty} open seat${empty>1?'s':''}${net?': waiting for players…':''}</div>`:''}</div></div>
+  <div class="box">${status}${host?`<h3>ADD A BOT</h3><div class="diffs" style="margin:10px 0 14px">${Object.keys(DIFF).map(d=>`<button class="chip" data-act="addbot" data-v="${d}" id="bot-${d}" ${sl.length>=cfg.max?'disabled':''}>+ ${d}</button>`).join('')}</div>`:''}
+  ${settings}
+  ${host&&net?'<div class="row" style="margin:4px 0 10px"><button class="btn sm" data-act="ginvite" id="ginvite">📣 POST INVITE TO CAMPUS CHAT</button></div>':''}
+  ${host?`${net&&humans.length?`<p class="${rdy===humans.length?'good':'dim'}" style="font-size:15px;margin:10px 0 6px">${rdy}/${humans.length} player${humans.length>1?'s':''} ready</p>`:''}<button class="btn gold" data-act="startvs" id="startvs" ${sl.length<2?'disabled':''}>START MATCH</button>${sl.length<2?'<p class="dim" style="font-size:14px">Add a bot or wait for a classmate.</p>':''}`
+   :`<div class="row" style="margin-top:12px">${readyBtn}${seatBtn}</div>${!playing&&!spec?`<p class="vt dim">${mine&&mine.ready?'The host can see you’re ready.':'Ready up so the host knows to start.'}</p>`:''}`}</div></div>`;
 }
 function startVS(){
-  const sl=lobbySlotsArr();
-  const ps=sl.map(x=>mkPlayer({id:x.id,n:x.n,s:x.s,c:x.c,cpu:x.bot?{...CPU[x.id.replace('bot_','')],acc:DIFF[x.diff]||.66}:null,remote:!x.bot&&x.id!==ME}));
-  G=newG({mode:'vs',players:ps,code:LOBBY.code,net:LOBBY.net});
-  if(LOBBY.net)ON.setMeta(LOBBY.code,{status:'playing'});
+  const sl=lobbySlotsArr(),cfg=lcfg();
+  const ps=sl.map(x=>mkPlayer({id:x.id,n:x.n,s:x.s,c:x.c,lives:cfg.lives,cpu:x.bot?{...CPU[x.id.replace('bot_','')],acc:DIFF[x.diff]||.66}:null,remote:!x.bot&&x.id!==ME}));
+  G=newG({mode:'vs',players:ps,code:LOBBY.code,net:LOBBY.net,time:cfg.time,timer:cfg.time*1000});
+  if(LOBBY.net){LOBBY.meta={...(LOBBY.meta||{}),status:'playing'};ON.setMeta(LOBBY.code,{status:'playing'});syncPub()}
   chatSys('Match started. The potato is warming up.');V='game';newTopic();render();startLoop();
 }
 /* ---------- online: host publishes, clients mirror ---------- */
@@ -467,7 +575,7 @@ function publish(){
   const q=G.q,rev=G.phase==='reveal'||G.phase==='over';
   const st={turnId:G.turnId,phase:G.phase==='dead'?'reveal':G.phase,turn:G.turn,round:G.round,turnsLeft:G.turnsLeft,timer:G.timer,fastT:!!G.fastT,deadline:G.phase==='ask'?ON.now()+G.t:0,
     topic:G.topic?{name:G.topic.name,course:G.topic.course,ch:G.topic.ch||''}:null,
-    players:G.players.map(p=>({id:p.id,n:p.n,s:p.s,c:p.c,lives:p.lives,run:p.run,streak:p.streak,alive:p.alive,score:p.score,bot:!!p.cpu})),
+    players:G.players.map(p=>({id:p.id,n:p.n,s:p.s,c:p.c,lives:p.lives,maxL:p.maxL,run:p.run,streak:p.streak,alive:p.alive,score:p.score,bot:!!p.cpu})),
     q:q?{kind:q.kind,hypo:!!q.hypo,q:q.q,opts:q.opts.map(o=>o.t),elim:q.elim,passes:q.passes,solved:!!q.solved,ok:rev&&(q.solved||G.res==='ok')?q.opts.findIndex(o=>o.ok):-1,ans:q.solved?q.ans:'',e:q.solved?q.e:''}:null,
     pickI:G.pickI==null?null:G.pickI,res:G.res||null,narr:G.narr,pop:G.pop||null,bark:G.bark?{id:G.bark.id,text:G.bark.text}:null,
     result:G.phase==='over'?{st:G.result.st}:null};
@@ -490,15 +598,21 @@ function clientAnswer(i){if(!G||!G.client||G.phase!=='ask'||G.sentTurn===G.turnI
 
 /* ================= leaderboards ================= */
 const boardKey=()=>BOARD==='vs'?'vs':`${BW}-${BF+1}`;
-const onlineBoard=k=>ON&&(k==='vs'||/^cp-\d$/.test(k));
-async function loadBoard(){const k=boardKey();if(!onlineBoard(k))return;loadCrowns();BOARDDATA[k]={loading:true};render();try{BOARDDATA[k]={rows:await ON.top(k,10)}}catch(e){BOARDDATA[k]={err:true}}if(V==='boards')render()}
+const onlineBoard=k=>ON&&(k==='vs'||/^(cp|torts|k)-[123]$/.test(k));
+let boardOff=null,boardOffK='';
+function stopBoardWatch(){if(boardOff){boardOff();boardOff=null;boardOffK=''}}
+function loadBoard(){const k=boardKey();if(!onlineBoard(k)){stopBoardWatch();return}loadCrowns();if(boardOffK===k)return;stopBoardWatch();
+  if(!BOARDDATA[k]||BOARDDATA[k].err)BOARDDATA[k]={loading:true};boardOffK=k;
+  boardOff=ON.watchTop(k,25,rows=>{const was=BOARDDATA[k]&&BOARDDATA[k].rows;BOARDDATA[k]=rows?{rows,live:true}:{err:true};if(rows&&was&&rows[0]&&(!was[0]||was[0].uid!==rows[0].uid))loadCrowns();if(V==='boards'&&boardKey()===k)render()});if(V==='boards')render()}
 function lbTable(list,mine){if(!list||!list.length)return '<p class="vt dim">No scores yet. The potato is waiting for greatness. Or adequacy.</p>';
-  return `<table class="lbt"><tr><td>#</td><td>PLAYER</td><td>RESULT</td><td>POINTS</td></tr>${list.map((e,i)=>`<tr class="${(mine?e.uid===ME:e.name===prof().name)?'me':''}"><td>${i+1}</td><td class="nm">${mine&&e.uid&&crownN(e.uid)?crownSvg(crownN(e.uid),'inline'):''}${spr(ICONS[e.icon]||'potato',COLORS[e.color]||'#fff')}${esc(e.name)}</td><td class="dim" style="font-size:14px">${e.won?'won':ordinal(e.place||0)}${e.players?` of ${e.players}`:''}${e.date?' · '+esc(e.date):''}</td><td>${Number(e.score)||0}</td></tr>`).join('')}</table>`}
+  return `<table class="lbt"><tr><td>#</td><td>PLAYER</td><td>RESULT</td><td>POINTS</td></tr>${list.map((e,i)=>`<tr class="${(mine?e.uid===ME:e.name===prof().name)?'me':''}"><td>${i+1}</td><td class="nm">${mine&&e.uid&&crownN(e.uid)?crownSvg(crownN(e.uid),'inline'):''}${spr(ICONS[e.icon]||'potato',COLORS[e.color]||'#fff')}${nm(e.name)}</td><td class="dim" style="font-size:14px">${e.won?'won':e.place?ordinal(e.place):'—'}${e.players?` of ${e.players}`:''}${e.date?' · '+esc(e.date):''}</td><td>${Number(e.score)||0}</td></tr>`).join('')}</table>`}
 function boardsV(){
   const k=boardKey(),on=onlineBoard(k),d=BOARDDATA[k];
   const tab=(v,l)=>`<button class="chip" data-act="board" data-v="${v}" id="tab-${v}" aria-pressed="${BOARD===v}">${l}</button>`;
   const head=BOARD==='story'?`<div class="tabs">${WORLDS.map(w=>`<button class="chip" data-act="bworld" data-v="${w.id}" id="bw-${w.id}" aria-pressed="${BW===w.id}">${esc(w.course)}</button>`).join('')}</div><div class="tabs">${[0,1,2].map(i=>`<button class="chip" data-act="bfloor" data-v="${i}" id="bf-${i}" aria-pressed="${BF===i}">FLOOR ${i+1}: ${WBY[BW].floors[i].name}</button>`).join('')}</div>`:'';
-  const scope=on?'<p class="good" style="font-size:14px;margin:0 0 8px">● GLOBAL · online</p>':`<p class="dim" style="font-size:14px;margin:0 0 8px">○ LOCAL · this browser${(BW!=='cp'&&BOARD==='story')?' (online boards cover Civil Procedure only for now)':onState!=='on'?' (online not connected)':''}</p>`;
+  const myBest=BOARD==='story'?S.best[BW+'-'+BF]:null,rows=on&&d&&d.rows||[],myRow=rows.findIndex(e=>e.uid===ME);
+  const cmp=on&&d&&d.rows?(myRow>=0?`<p class="gold" style="font-size:15px;margin:0 0 8px">You’re #${myRow+1} of the top ${rows.length} with ${rows[myRow].score} pts${myRow>0?` · ${rows[0].score-rows[myRow].score} pts behind #1`:' · you hold the crown spot'}</p>`:myBest?`<p class="dim" style="font-size:15px;margin:0 0 8px">Your best here: ${myBest} pts${rows.length>=25&&myBest<rows[rows.length-1].score?` · ${rows[rows.length-1].score-myBest+1} more to crack the top 25`:''}</p>`:''):'';
+  const scope=on?`<p class="good" style="font-size:14px;margin:0 0 8px">● GLOBAL · live, top 25 · updates as classmates play</p>${cmp}`:`<p class="dim" style="font-size:14px;margin:0 0 8px">○ LOCAL · this browser${onState!=='on'?' (online not connected)':''}</p>`;
   const body=on?(!d||d.loading?'<p class="vt dim">Fetching scores…</p>':d.err?'<p class="bad">Couldn’t load the online board.</p>':lbTable(d.rows,true)):lbTable(S.lb[k],false);
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>LEADERBOARDS</h2><div class="tabs">${tab('story','STORY LEADERBOARD')}${tab('vs','VS LEADERBOARD')}</div>${head}${scope}${body}
   <details style="margin-top:16px"><summary class="gold" style="cursor:pointer">HOW SCORING WORKS</summary><table style="margin-top:8px"><tr><td>Correct answer</td><td>100</td></tr><tr><td>Each wrong pick before you (question was passed)</td><td>×0.75</td></tr><tr><td>Redemption: correct right after losing a life</td><td>×1.25</td></tr><tr><td>Streak active (3 in a row; lasts until a miss; your timer drops by 5 seconds)</td><td>×1.25</td></tr></table><p class="dim" style="font-size:14px">Bonuses multiply. Timeouts pass the question without lowering its value.</p></details></div>`;
@@ -524,7 +638,7 @@ function act(a,v,el){
   else if(a==='home'){if(LOBBY&&V==='boards'){if(LOBBY.host){act('tolobby');return}V='lobby';render();return}if(LOBBY){leaveLobby();return}stopLoop();G=null;flavI=(flavI+1)%FLAV.length;go('title')}
   else if(a==='icon'){S.profile.icon=+v;keepName();render()}
   else if(a==='color'){S.profile.color=+v;keepName();render()}
-  else if(a==='saveprof'){keepName();if(!S.profile.name)S.profile.name='SPUD';save();go('title')}
+  else if(a==='saveprof'){keepName();S.profile.name=censor(S.profile.name);if(!S.profile.name)S.profile.name='SPUD';save();go('title')}
   else if(a==='world'){WSEL=v;stopLoop();G=null;go('floors')}
   else if(a==='floor')startStory(WSEL,+v);
   else if(a==='dlg')dlgAdv();
@@ -538,7 +652,21 @@ function act(a,v,el){
   else if(a==='addbot')addBot(v);
   else if(a==='rmbot')rmBot(v);
   else if(a==='startvs')startVS();
-  else if(a==='tolobby'){stopLoop();G=null;if(LOBBY&&LOBBY.net){ON.setMeta(LOBBY.code,{status:'lobby'});ON.publish(LOBBY.code,null)}V='lobby';render()}
+  else if(a==='tolobby'){stopLoop();G=null;if(LOBBY&&LOBBY.net){LOBBY.meta={...(LOBBY.meta||{}),status:'lobby'};ON.setMeta(LOBBY.code,{status:'lobby'});ON.publish(LOBBY.code,null);syncPub()}V='lobby';render()}
+  else if(a==='lcfg'){if(!LOBBY||!LOBBY.host)return;const k=el.dataset.k,val=k==='pub'?v==='true':+v,cfg={...lcfg(),[k]:val};
+    if(LOBBY.net){LOBBY.meta={...(LOBBY.meta||{}),cfg};ON.setMeta(LOBBY.code,{cfg});syncPub();if(k==='pub')chatSys(val?'The host made this lobby public.':'The host made this lobby private.');else if(k==='lives')chatSys(`Lives set to ${val}.`)}else LOBBY.cfg=cfg;render()}
+  else if(a==='ready'){if(!LOBBY||!LOBBY.net)return;const m=LOBBY.slots[ME];if(!m)return;ON.patchSlot(LOBBY.code,ME,{ready:!m.ready}).catch(()=>{})}
+  else if(a==='takeseat'){if(!LOBBY||!LOBBY.spec)return;ON.takeSeat(LOBBY.code,{n:meP().n,s:meP().s,c:meP().c,bot:false}).then(()=>{LOBBY.spec=false;render()}).catch(()=>{})}
+  else if(a==='kick'){if(!LOBBY||!LOBBY.host)return;const x=LOBBY.slots[v];ON.setSlot(LOBBY.code,v,null);if(x)chatSys(`${censor(x.n)} was removed by the host.`)}
+  else if(a==='joinpub'){joinLobby(v)}
+  else if(a==='emotes'){const el2=document.getElementById('emotes');if(el2){el2.hidden=!el2.hidden;if(!el2.hidden)emotePanel()}}
+  else if(a==='emote')sendEmote(v);
+  else if(a==='gemotes'){const el2=GNODE&&GNODE.querySelector('#gemotes');if(el2){el2.hidden=!el2.hidden;if(!el2.hidden)gEmotePanel()}}
+  else if(a==='gemote'){const el2=GNODE&&GNODE.querySelector('#gemotes');if(el2)el2.hidden=true;if(!gOK('emo:'+v+':'+performance.now()))return;if(v==='crown'){const n=crownN(ME);if(n)gSend({cr:n})}else if(EMO[v])gSend({e:v})}
+  else if(a==='gmute'){if(!v||v===ME)return;const now=performance.now();if(gPend.id!==v||now-gPend.t>4000){gPend={id:v,t:now};const m=GNODE&&GNODE.querySelector('#gmuted');if(m)m.textContent=`tap ${censor(el.textContent)} again to mute`;return}gPend={};const m=muted();if(!m.includes(v))m.push(v);save();gDraw()}
+  else if(a==='gunmute'){S.muted=[];save();gDraw()}
+  else if(a==='ghost'){if(!prof().name){go('profile');return}mkLobby('pub').then(()=>{if(LOBBY&&LOBBY.net){postInvite();chatSys('Invite posted to campus chat.')}})}
+  else if(a==='ginvite'){if(postInvite())chatSys('Invite posted to campus chat.');else chatSys('You can post an invite every 30 seconds.')}
   else if(a==='leavelobby')leaveLobby();
   else if(a==='board'){BOARD=v;if(!(G&&(G.net||G.client))){stopLoop();if(G&&G.mode!=='story')G=null}go('boards');loadBoard()}
   else if(a==='bworld'){BW=v;render();loadBoard()}
@@ -551,7 +679,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(
 document.addEventListener('submit',e=>{if(e.target.id!=='joinf')return;e.preventDefault();joinLobby(document.getElementById('joincode').value)});
 document.addEventListener('input',e=>{if(e.target.id==='nm')S.profile.name=e.target.value.toUpperCase().slice(0,10)});
 document.addEventListener('keydown',e=>{
-  if(e.target.id==='chatin'||e.target.id==='joincode')return;
+  if(e.target.id==='chatin'||e.target.id==='joincode'||e.target.id==='gchatin')return;
   if(e.target.tagName==='INPUT'){if(e.key==='Enter'){keepName();save();go('title')}return}
   if(V==='title'){if(e.key==='ArrowDown'||e.key==='s'){menuI=(menuI+1)%MENU.length;render();e.preventDefault()}else if(e.key==='ArrowUp'||e.key==='w'){menuI=(menuI+MENU.length-1)%MENU.length;render();e.preventDefault()}else if(e.key==='Enter'||e.key===' '){e.preventDefault();act('menu',MENU[menuI][1])}return}
   if(V==='dlg'&&(e.key==='Enter'||e.key===' '||e.key==='z')){e.preventDefault();dlgAdv();return}
