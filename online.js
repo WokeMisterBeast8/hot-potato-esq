@@ -58,12 +58,44 @@ export async function connect(config) {
       if (String(pw).length < 8) throw new Error('Passwords need at least 8 characters.');
       const owner = await api.nameOwner(name);
       if (owner && owner !== user.uid) throw new Error('That name is already registered.');
-      if (!user.isAnonymous) throw new Error('This browser is already logged in to a registered name.');
+      if (!user.isAnonymous) {
+        // Half-finished registration from before: the password account exists but the name claim doesn't.
+        if (api.regName && nameKey(api.regName) === nameKey(name)) { await api.claimName(); return; }
+        throw new Error('This browser is already logged in to a registered name.');
+      }
       try { await linkWithCredential(user, EmailAuthProvider.credential(mailOf(name), pw)); }
       catch (e) { throw new Error(authMsg(e)); }
-      await user.getIdToken(true); // refresh the token so the database sees the new sign-in method
-      await D.set(r('names/' + nameKey(name)), user.uid);
       api.regName = String(name).toUpperCase();
+      await api.claimName();
+    },
+    // Write names/<name> = uid. The database only accepts this once it sees the new password sign-in,
+    // which can lag a moment behind the account being created, so refresh the token and retry.
+    async claimName() {
+      const name = api.regName;
+      if (!name) return false;
+      const ref = r('names/' + nameKey(name));
+      let last = null;
+      for (let i = 0; i < 6; i++) {
+        try {
+          const cur = await D.get(ref);
+          if (cur.exists()) {
+            if (cur.val() === user.uid) return true;
+            throw Object.assign(new Error('Someone else already holds that name in the name list.'), { fatal: true });
+          }
+          await user.getIdToken(true);
+          await D.set(ref, user.uid);
+          return true;
+        } catch (e) {
+          if (e.fatal) throw e;
+          last = e;
+          await new Promise(res => setTimeout(res, 600 * (i + 1)));
+        }
+      }
+      throw new Error('Your password was saved, but the name couldn’t be claimed yet (' + ((last && (last.code || last.message)) || 'unknown error') + '). Reload the game and it will try again automatically.');
+    },
+    // Live owner of a name (used to show the admin badge as soon as COOPER is claimed).
+    watchName(name, cb) {
+      return D.onValue(r('names/' + nameKey(name)), s => cb(s.exists() ? s.val() : null), () => {});
     },
     async login(name, pw) {
       try { await signInWithEmailAndPassword(auth, mailOf(name), pw); }

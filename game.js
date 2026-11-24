@@ -125,7 +125,11 @@ const ADMINNAME='COOPER',ADMINC='#ffd84a';
 const isAdmin=uid=>!!uid&&uid===ADMINUID;
 async function accountBoot(){
   try{ADMINUID=await ON.nameOwner(ADMINNAME)}catch(e){}
-  if(ON.regName){S.reg=ON.regName;S.profile.name=ON.regName;save();return}
+  if(ON.watchName)ON.watchName(ADMINNAME,u=>{if(u===ADMINUID)return;ADMINUID=u;if(GNODE)gDraw();if(V!=='game')render()});
+  if(ON.regName){S.reg=ON.regName;S.profile.name=ON.regName;save();
+    // Repair a registration whose name claim didn't go through.
+    try{const o=await ON.nameOwner(ON.regName);if(o!==ME){await ON.claimName();if(ON.regName===ADMINNAME)ADMINUID=ME;ACCTMSG=''}}catch(e){ACCTMSG=e.message||String(e)}
+    return}
   S.reg=null;const n=prof().name;if(!n)return;
   try{const o=await ON.nameOwner(n);if(o&&o!==ME){NAMEBUMP=n;S.profile.name='';save()}}catch(e){}
 }
@@ -141,11 +145,11 @@ function checkName(n){
     NAMESTAT={n,st:o?(o===ME?'mine':'taken'):(ON.validRegName(n)?'free':'freeonly')};drawNameStat()},350);
 }
 function nameStatHTML(){const s=NAMESTAT.st,n=esc(NAMESTAT.n);
-  return s==='checking'?'<span class="dim">checking…</span>':s==='free'?`<span class="good">✓ ${n} is available</span>`:s==='freeonly'?`<span class="good">✓ available</span> <span class="dim">(to register it, use only letters, numbers, _ and -)</span>`:s==='mine'?`<span class="good">✓ registered to you</span>`:s==='taken'?`<span class="bad">✗ ${n} is registered. Log in below if it’s yours.</span>`:s==='offline'?'<span class="dim">offline: names can’t be checked</span>':s==='err'?'<span class="dim">couldn’t check right now</span>':''}
+  return s==='checking'?'<span class="dim">checking…</span>':s==='free'?`<span class="good">✓ ${n} is available</span> <span class="dim">· not registered yet: add a password below to claim it</span>`:s==='freeonly'?`<span class="good">✓ available</span> <span class="dim">(to register it, use only letters, numbers, _ and -)</span>`:s==='mine'?`<span class="good">✓ registered to you</span>`:s==='taken'?`<span class="bad">✗ ${n} is registered. Log in below if it’s yours.</span>`:s==='offline'?'<span class="dim">offline: names can’t be checked</span>':s==='err'?'<span class="dim">couldn’t check right now</span>':''}
 function drawNameStat(){const el=document.getElementById('nmstat');if(el)el.innerHTML=nameStatHTML();const b=document.getElementById('save');if(b)b.disabled=NAMESTAT.st==='taken'||NAMESTAT.st==='checking'}
 function acctV(){
   if(onState!=='on')return `<div class="acct"><h3>ACCOUNT</h3><p class="dim" style="font-size:15px">Registering a name needs online play.</p></div>`;
-  if(S.reg)return `<div class="acct"><h3>ACCOUNT</h3><p class="good" style="margin:6px 0">🔒 Logged in as <b>${esc(S.reg)}</b>${isAdmin(ME)?' <span class="admintag">ADMIN</span>':''}</p><p class="dim" style="font-size:14px;margin:0 0 10px">This name is yours. You stay logged in on this browser. Log in on other devices with your name and password.</p><button class="btn sm" data-act="logout" id="logout">LOG OUT</button>${ACCTMSG?`<p class="vt" style="margin:8px 0 0">${esc(ACCTMSG)}</p>`:''}</div>`;
+  if(S.reg)return `<div class="acct"><h3>ACCOUNT</h3><p class="good" style="margin:6px 0">🔒 Logged in as <b>${esc(S.reg)}</b>${isAdmin(ME)?' <span class="admintag">ADMIN</span>':''}</p><p class="dim" style="font-size:14px;margin:0 0 10px">This name is yours. You stay logged in on this browser. Log in on other devices with your name and password.${S.reg===ADMINNAME&&!isAdmin(ME)?'</p><p class="bad" style="font-size:14px">Admin isn’t active yet: the name claim didn’t finish. Tap FINISH CLAIM.':''}</p>${S.reg===ADMINNAME&&!isAdmin(ME)?'<button class="btn sm gold" data-act="claimfix" id="claimfix" style="margin-right:8px">FINISH CLAIM</button>':''}<button class="btn sm" data-act="logout" id="logout">LOG OUT</button>${ACCTMSG?`<p class="vt" style="margin:8px 0 0">${esc(ACCTMSG)}</p>`:''}</div>`;
   return `<div class="acct"><h3>REGISTER YOUR NAME <span class="dim" style="font-size:14px">(optional)</span></h3>
   <p class="dim" style="font-size:14px;margin:4px 0 8px">Add a password so nobody else can use your name, and stay logged in. No email needed. Any password with 8 or more characters works.</p>
   <form id="regf" autocomplete="on"><input type="hidden" autocomplete="username" value="${esc(prof().name)}"><input type="password" id="pw1" minlength="8" maxlength="64" placeholder="password (8+ characters)" autocomplete="new-password" aria-label="New password"><input type="password" id="pw2" minlength="8" maxlength="64" placeholder="type it again" autocomplete="new-password" aria-label="Confirm password" style="margin-top:6px"><button class="btn gold" type="submit" id="regb" style="margin-top:8px" ${ACCTBUSY?'disabled':''}>REGISTER ${esc(prof().name||'NAME')}</button></form>
@@ -162,7 +166,7 @@ document.addEventListener('submit',async e=>{
     if(a.length<8){ACCTMSG='Passwords need at least 8 characters.';render();return}
     if(a!==b){ACCTMSG='The two passwords don’t match.';render();return}
     ACCTBUSY=true;ACCTMSG='Registering…';render();
-    try{await ON.register(n,a);S.reg=n;S.profile.name=n;save();ACCTMSG=`Done. ${n} is registered to you.`;if(n===ADMINNAME)ADMINUID=ME}catch(err){ACCTMSG=err.message||String(err)}
+    try{await ON.register(n,a);S.reg=n;S.profile.name=n;save();ACCTMSG=n===ADMINNAME?`Done. ${n} is registered to you, and you’re the admin.`:`Done. ${n} is registered to you.`;if(n===ADMINNAME)ADMINUID=ME}catch(err){ACCTMSG=err.message||String(err);if(ON.regName){S.reg=ON.regName;save()}}
     ACCTBUSY=false;render();
   }else{
     const n=document.getElementById('lgn').value.trim().toUpperCase(),p=document.getElementById('lgp').value;
@@ -696,6 +700,7 @@ function act(a,v,el){
   else if(a==='icon'){S.profile.icon=+v;keepName();render()}
   else if(a==='color'){S.profile.color=+v;keepName();render()}
   else if(a==='logout'){if(!ON)return;ACCTBUSY=true;ON.logout().then(()=>{S.reg=null;S.profile.name='';save();location.reload()}).catch(()=>{ACCTBUSY=false})}
+  else if(a==='claimfix'){if(!ON||!ON.claimName)return;ACCTMSG='Finishing…';render();ON.claimName().then(()=>{if(ON.regName===ADMINNAME)ADMINUID=ME;ACCTMSG='Done. You’re the admin.';render()}).catch(e=>{ACCTMSG=e.message||String(e);render()})}
   else if(a==='gdel'){if(!isAdmin(ME)||!ON||!v)return;ON.gchatDel(v).catch(()=>{})}
   else if(a==='saveprof'){keepName();S.profile.name=censor(S.profile.name);
     if(ON&&!S.reg&&S.profile.name){const n=S.profile.name;ON.nameOwner(n).then(o=>{if(o&&o!==ME){NAMESTAT={n,st:'taken'};S.profile.name='';save();render()}}).catch(()=>{})}if(!S.profile.name)S.profile.name='SPUD';save();go('title')}
