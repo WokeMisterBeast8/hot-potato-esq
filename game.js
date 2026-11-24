@@ -130,21 +130,61 @@ const midi=n=>{const m=/^([A-G][b#]?)(-?\d)$/.exec(n);return m?NN[m[1]]+12*(+m[2
 // chord "Abmaj7" -> {root midi (octave 2), ivs}
 const chordOf=c=>{const m=/^([A-G][b#]?)(.*)$/.exec(c);return {r:NN[m[1]]+36,iv:CH[m[2]||'maj7']}};
 const SONGS={
- home:{title:'Library at Golden Hour',bpm:100,swing:.12,bass:'walk',drums:'chill',arp:'8th',
+ home:[
+ {title:'Library at Golden Hour',bpm:100,swing:.12,bass:'walk',drums:'chill',arp:'8th',
   bars:[['Abmaj7'],['Gm7'],['Cm9'],['Fm7',8,'Bb7',8],['Abmaj7'],['Gm7'],['Fm7'],['Bb7sus',12,'Bb7',4]],
   mel:'G5:3 Eb5:1 F5:2 G5:2 Bb5:4 G5:2 F5:2|F5:6 -:2 D5:2 F5:2 G5:2 Bb5:2|C6:4 Bb5:2 G5:2 D6:6 -:2|C6:2 Bb5:2 Ab5:2 G5:2 F5:4 D5:2 F5:2|Eb5:2 G5:2 C6:3 Bb5:1 G5:4 -:2 Eb5:2|F5:2 G5:2 Bb5:2 D6:2 C6:4 Bb5:2 G5:2|Ab5:4 G5:2 F5:2 Eb5:4 C5:2 Eb5:2|F5:12 -:4'},
- vs:{title:'Objection Overdrive',bpm:138,swing:0,bass:'slap',drums:'drive',arp:'16th',
+ {title:'Reading Room Rain',bpm:92,swing:.14,bass:'bossa',drums:'bossa',arp:'8th',
+  bars:[['Bbmaj7'],['Am7'],['Gm7'],['C7sus',8,'C7',8],['Fmaj7'],['Dm9'],['Gm9'],['C13']],
+  mel:'D6:4 C6:2 A5:2 F5:4 G5:2 A5:2|G5:6 E5:2 C5:2 E5:2 G5:2 A5:2|Bb5:3 A5:1 G5:2 F5:2 D5:4 -:4|F5:2 G5:2 Bb5:2 C6:2 E6:4 D6:2 C6:2|A5:4 C6:2 E6:2 G6:4 E6:2 C6:2|F6:3 E6:1 D6:2 C6:2 A5:4 F5:4|A5:2 Bb5:2 D6:2 F6:2 E6:2 D6:2 Bb5:4|A5:10 -:6'},
+ {title:'Highlighter Sunset',bpm:106,swing:.1,bass:'walk',drums:'chill',arp:'16th',
+  bars:[['Gmaj7'],['F#m7'],['Em9'],['A7sus',8,'A7',8],['Dmaj9'],['Bm7'],['Em7',8,'A7',8],['Dmaj7']],
+  mel:'B5:2 D6:2 F#6:4 E6:2 D6:2 B5:4|A5:6 C#6:2 E6:2 C#6:2 A5:4|G5:2 F#5:2 E5:2 F#5:2 G5:2 B5:2 D6:4|E6:4 D6:2 C#6:2 B5:2 A5:2 G5:4|F#5:2 A5:2 C#6:4 E6:4 C#6:4|D6:3 C#6:1 B5:4 F#5:4 A5:4|G5:2 B5:2 E6:4 C#6:2 E6:2 G6:4|F#6:8 E6:2 C#6:2 D6:4'},
+ ],
+ vs:[
+ {title:'Objection Overdrive',bpm:138,swing:0,bass:'slap',drums:'drive',arp:'16th',
   bars:[['Em9'],['Cmaj7'],['Am9'],['B7#9'],['D6'],['Cmaj7'],['F#m7b5',8,'B7',8],['Em9']],
   mel:'B5:1 D6:1 E6:2 D6:1 B5:1 A5:2 B5:2 -:2 G5:1 A5:1 B5:2|E6:3 D6:1 B5:2 G5:2 E5:4 G5:2 B5:2|C6:2 B5:2 A5:2 G5:2 A5:1 B5:1 C6:2 E6:4|D#6:4 D6:2 B5:2 F#5:2 A5:2 D#6:4|F#6:2 E6:2 D6:2 B5:2 A5:2 B5:2 D6:4|E6:6 G6:2 F#6:2 E6:2 D6:2 B5:2|A5:2 C6:2 E6:2 D#6:2 C6:2 A5:2 F#5:2 D#5:2|E5:1 G5:1 B5:1 D6:1 E6:8 -:4'},
- cp:{title:'The Procedural Abyss',bpm:108,swing:.08,bass:'pulse',drums:'half',arp:'8th',
+ {title:'Hearsay Hyperdrive',bpm:146,swing:0,bass:'slap',drums:'drive',arp:'16th',
+  bars:[['Am9'],['Fmaj7'],['G6'],['E7#9'],['Am9'],['Dm9'],['Bm7b5',8,'E7',8],['Am9']],
+  mel:'E6:2 C6:1 B5:1 A5:2 E5:2 G5:1 A5:1 C6:2 E6:4|F6:3 E6:1 C6:2 A5:2 G5:2 A5:2 C6:4|B5:2 D6:2 E6:2 G6:2 E6:2 D6:2 B5:4|G#5:4 B5:2 D6:2 G6:4 F6:2 E6:2|A5:1 B5:1 C6:1 E6:1 A6:6 G6:2 E6:4|F6:2 E6:2 D6:2 C6:2 A5:4 C6:4|D6:2 F6:2 A5:2 B5:2 G#5:2 B5:2 E6:4|A5:8 -:8'},
+ {title:'Speedy Trial',bpm:132,swing:.04,bass:'pulse',drums:'funk',arp:'16th',
+  bars:[['Gmaj7'],['Am7'],['Bm7'],['Cmaj7',8,'D7',8],['Em9'],['Am7',8,'D7',8],['Gmaj7'],['F7',8,'D7',8]],
+  mel:'D6:2 B5:2 G5:2 A5:2 B5:4 F#5:4|E6:2 D6:2 C6:2 A5:2 G5:2 A5:2 C6:4|D6:3 F#6:1 E6:2 D6:2 B5:4 A5:4|G5:2 B5:2 E6:4 F#6:2 E6:2 C6:2 A5:2|B5:2 E6:2 G6:4 F#6:2 E6:2 B5:4|C6:2 A5:2 E5:2 G5:2 F#5:2 A5:2 C6:4|B5:6 D6:2 F#6:4 D6:4|A5:4 Eb6:4 D6:4 C6:4'},
+ ],
+ cp:[
+ {title:'The Procedural Abyss',bpm:108,swing:.08,bass:'pulse',drums:'half',arp:'8th',
   bars:[['Dm9'],['Bbmaj7'],['Gm9'],['A7b9'],['Dm9'],['Fmaj7'],['Ebmaj7#11'],['A7sus',8,'A7',8]],
   mel:'A5:4 F5:2 E5:2 D5:4 E5:2 F5:2|A5:6 C6:2 D6:4 C6:2 A5:2|Bb5:3 A5:1 G5:4 F5:2 A5:2 D5:4|C#6:4 Bb5:4 G5:2 E5:2 C#5:4|D6:2 E6:2 F6:4 E6:2 D6:2 A5:4|C6:4 E6:4 A5:4 G5:2 A5:2|Bb5:4 A5:2 G5:2 D6:6 -:2|E5:4 D5:2 E5:2 C#5:8'},
- torts:{title:'Reasonable Breeze',bpm:96,swing:.14,bass:'bossa',drums:'bossa',arp:'8th',
+ {title:'Motion to Dismiss',bpm:100,swing:.1,bass:'walk',drums:'half',arp:'8th',
+  bars:[['Gm9'],['Ebmaj7'],['Cm9'],['D7b9'],['Gm9'],['Bbmaj7'],['Am7b5',8,'D7',8],['Gm9']],
+  mel:'D6:4 Bb5:2 A5:2 G5:4 A5:2 Bb5:2|G5:6 Bb5:2 D6:4 C6:2 Bb5:2|Eb6:3 D6:1 C6:4 G5:2 Bb5:2 D6:4|F#5:4 A5:2 C6:2 Eb6:4 D6:4|Bb5:2 C6:2 D6:4 F6:2 D6:2 A5:4|D6:4 F6:4 A5:4 C6:4|C6:2 Eb6:2 G5:2 A5:2 F#5:4 C6:4|G5:12 -:4'},
+ {title:'Subject Matter Midnight',bpm:116,swing:.06,bass:'slap',drums:'drive',arp:'16th',
+  bars:[['Cm9'],['Abmaj7'],['Fm9'],['G7#9'],['Cm9'],['Ebmaj7'],['Dm7b5',8,'G7',8],['Cm9']],
+  mel:'G5:2 Bb5:2 C6:2 D6:2 Eb6:4 D6:2 C6:2|C6:6 Eb6:2 G6:4 F6:2 Eb6:2|Ab5:3 G5:1 F5:2 C6:2 Eb6:4 G5:4|B5:4 D6:2 F6:2 Bb6:4 Ab6:2 G6:2|Eb6:2 D6:2 C6:4 G5:2 Bb5:2 D6:4|G6:4 F6:2 D6:2 Bb5:4 G5:4|Ab5:2 C6:2 F6:2 D6:2 B5:4 D6:4|C6:10 -:6'},
+ ],
+ torts:[
+ {title:'Reasonable Breeze',bpm:96,swing:.14,bass:'bossa',drums:'bossa',arp:'8th',
   bars:[['Fmaj7'],['Em7',8,'A7',8],['Dm9'],['Gm7',8,'C7',8],['Bbmaj7'],['Am7'],['Gm7'],['C7sus']],
   mel:'C6:2 A5:2 E6:4 C6:2 A5:2 G5:4|G5:2 A5:2 B5:2 D6:2 C#6:4 A5:4|E6:6 D6:2 C6:2 A5:2 F5:4|Bb5:2 A5:2 G5:2 F5:2 E5:4 G5:4|D6:2 F6:2 A6:4 F6:2 D6:2 C6:4|C6:3 B5:1 A5:4 E5:4 G5:4|F5:2 G5:2 A5:2 Bb5:2 D6:4 C6:4|G5:10 -:6'},
- k:{title:'Bargain Bazaar Funk',bpm:120,swing:.06,bass:'slap',drums:'funk',arp:'16th',
+ {title:'Eggshell Afternoon',bpm:90,swing:.16,bass:'walk',drums:'chill',arp:'8th',
+  bars:[['Dmaj7'],['C#m7'],['Bm9'],['E7sus',8,'E7',8],['Amaj9'],['F#m7'],['Bm7',8,'E7',8],['Amaj7']],
+  mel:'F#5:2 A5:2 C#6:4 E6:2 C#6:2 A5:4|B5:6 G#5:2 E5:4 G#5:4|D6:3 C#6:1 B5:2 A5:2 F#5:4 A5:4|B5:4 A5:2 B5:2 G#5:4 D6:4|C#6:2 E6:2 G#6:4 E6:2 C#6:2 B5:4|A5:3 G#5:1 F#5:4 C#6:4 E6:4|D6:2 C#6:2 B5:2 A5:2 G#5:2 B5:2 D6:4|C#6:10 -:6'},
+ {title:'Duty of Breeze',bpm:102,swing:.12,bass:'bossa',drums:'bossa',arp:'16th',
+  bars:[['Cmaj9'],['Am9'],['Dm9'],['G13'],['Em7'],['A7'],['Dm7',8,'G7',8],['Cmaj7']],
+  mel:'E6:2 D6:2 B5:4 G5:2 A5:2 B5:4|C6:6 B5:2 A5:2 E5:2 G5:4|F5:2 A5:2 C6:2 E6:2 D6:4 A5:4|B5:3 A5:1 G5:4 E6:4 D6:4|G5:2 B5:2 D6:4 E6:2 D6:2 B5:4|C#6:4 E6:4 G6:4 E6:2 C#6:2|F6:2 E6:2 D6:2 C6:2 B5:2 D6:2 F6:4|E6:10 -:6'},
+ ],
+ k:[
+ {title:'Bargain Bazaar Funk',bpm:120,swing:.06,bass:'slap',drums:'funk',arp:'16th',
   bars:[['Bbmaj7'],['Am7',8,'D7',8],['Gm7'],['C7'],['Ebmaj7'],['Dm7'],['Cm7',8,'F7',8],['Bb6']],
   mel:'F5:1 G5:1 Bb5:2 -:1 Bb5:1 C6:2 D6:2 C6:2 Bb5:2 G5:2|A5:3 G5:1 E5:2 G5:2 F#5:4 A5:2 C6:2|Bb5:2 D6:2 F6:4 D6:2 Bb5:2 A5:2 G5:2|E5:2 G5:2 Bb5:2 C6:2 E6:4 -:2 C6:2|D6:4 Bb5:2 G5:2 F5:2 G5:2 Bb5:4|A5:2 C6:2 D6:2 F6:2 E6:4 D6:4|Eb6:2 D6:2 C6:2 Bb5:2 A5:2 C6:2 Eb6:4|D6:2 C6:2 Bb5:8 -:4'},
+ {title:'Consideration Groove',bpm:116,swing:.08,bass:'pulse',drums:'funk',arp:'16th',
+  bars:[['Ebmaj7'],['Dm7',8,'G7',8],['Cm7'],['F7'],['Abmaj7'],['Gm7'],['Fm7',8,'Bb7',8],['Eb6']],
+  mel:'Bb5:1 C6:1 Eb6:2 -:1 Eb6:1 F6:2 G6:2 F6:2 Eb6:2 C6:2|D6:3 C6:1 A5:2 C6:2 B5:4 D6:2 F6:2|Eb6:2 G6:2 Bb6:4 G6:2 Eb6:2 D6:2 C6:2|A5:2 C6:2 Eb6:2 F6:2 A6:4 -:2 F6:2|G6:4 Eb6:2 C6:2 Bb5:2 C6:2 Eb6:4|D6:2 F6:2 G6:2 Bb6:2 A6:4 G6:4|Ab6:2 G6:2 F6:2 Eb6:2 D6:2 F6:2 Ab6:4|G6:2 F6:2 Eb6:8 -:4'},
+ {title:'Mailbox Rule Boogie',bpm:126,swing:.02,bass:'slap',drums:'drive',arp:'16th',
+  bars:[['Fmaj7'],['Eb7'],['Bbmaj7'],['C7#9'],['Dm9'],['Gm7'],['Bbmaj7',8,'C7',8],['F6']],
+  mel:'C6:2 A5:1 C6:1 F6:2 E6:2 C6:2 A5:2 G5:4|G5:2 Bb5:2 Db6:4 C6:2 Bb5:2 G5:4|D6:3 C6:1 A5:4 F5:4 A5:4|E5:2 G5:2 Bb5:2 Eb6:2 D6:4 C6:4|F5:2 A5:2 C6:2 E6:2 F6:4 E6:4|D6:2 Bb5:2 G5:2 F5:2 G5:4 Bb5:4|D6:2 F6:2 A6:4 G6:2 E6:2 C6:4|A5:2 C6:2 F6:8 -:4'},
+ ],
 };
 // Bass patterns: [step, interval from root (or 'third'/'fifth' via chord), length]
 const BASS={
@@ -162,7 +202,8 @@ const DRUMS={
   funk:{k:'x..x..x...x.....',s:'....x..x....x...',h:'xxxxxxxxxxxxxxxx',o:'..x.......x.....'},
 };
 function parseMel(str){return str.split('|').map(bar=>{let st=0;const out=[];bar.trim().split(/\s+/).forEach(t=>{const [n,l]=t.split(':');const len=+l;if(n!=='-')out.push({s:st,n:midi(n),l:len});st+=len});return out})}
-const MUS={ctx:null,master:null,bus:null,song:null,songId:'',timer:0,next:0,step:0,loop:0,gain:null,noise:null,waves:{},want:'home'};
+const MUS={ctx:null,master:null,layers:[],cur:null,timer:0,noise:null,waves:{},want:'home',vi:{}};
+const LOOPS_PER_SONG=2;
 function musVol(){const st=S.settings;return st.mmute?0:Math.pow(st.mvol==null?.5:st.mvol,2)*.55}
 function musInit(){
   if(MUS.ctx)return true;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
@@ -202,31 +243,46 @@ function schedStep(song,g,t,absStep){
   // lead
   const mel=song._mel[bar];mel.forEach(n=>{if(n.s!==st)return;const alt=loop%2===1;tone(g,t,n.n+(alt&&n.l>=4?0:0),n.l*sx*.96,alt?'p50':'p25',.13,{vib:n.l>=4,echo:true,slide:n.l>=6,sus:.75});if(alt)tone(g,t,n.n-12,n.l*sx*.9,'p12',.035,{sus:.6})});
 }
+// Each playing track is a "layer" with its own clock. A track plays LOOPS_PER_SONG times through,
+// fades out over its final bar, and the next variation for that mode fades in right after.
+function musLayer(id,v,t0,fadeIn){
+  const song=SONGS[id][v];if(!song._mel)song._mel=parseMel(song.mel);
+  const c=MUS.ctx,g=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(1,t0+fadeIn);g.connect(MUS.master);
+  const L={id,v,song,gain:g,step:0,next:t0,end:song.bars.length*16*LOOPS_PER_SONG,handed:false};
+  MUS.layers.push(L);MUS.cur=L;MUS.vi[id]=v;updMusUI();return L}
 function musTick(){
-  const c=MUS.ctx;if(!c||!MUS.song)return;const song=MUS.song,sx=60/song.bpm/4;
-  while(MUS.next<c.currentTime+.15){const sw=(MUS.step%2===1)?sx*song.swing:0;schedStep(song,MUS.gain,MUS.next+sw,MUS.step);MUS.next+=sx;MUS.step++}
+  const c=MUS.ctx;if(!c)return;
+  for(const L of MUS.layers.slice()){
+    const song=L.song,sx=60/song.bpm/4;
+    while(L.step<L.end&&L.next<c.currentTime+.15){const sw=(L.step%2===1)?sx*song.swing:0;schedStep(song,L.gain,L.next+sw,L.step);L.next+=sx;L.step++;
+      // start of the final bar of the last loop: fade this one out and queue the next variation
+      if(L===MUS.cur&&!L.handed&&L.step===L.end-16){L.handed=true;const barEnd=L.next+16*sx;
+        L.gain.gain.setValueAtTime(1,L.next);L.gain.gain.linearRampToValueAtTime(0,barEnd);
+        const nv=(L.v+1)%SONGS[L.id].length;musLayer(L.id,nv,barEnd,1.6)}}
+    if(L.step>=L.end&&c.currentTime>L.next+.5){L.gain.disconnect();MUS.layers.splice(MUS.layers.indexOf(L),1)}
+  }
 }
+function musFadeAll(sec){const c=MUS.ctx;if(!c)return;for(const L of MUS.layers){L.gain.gain.cancelScheduledValues(c.currentTime);L.gain.gain.setValueAtTime(L.gain.gain.value,c.currentTime);L.gain.gain.linearRampToValueAtTime(0,c.currentTime+sec);L.end=Math.min(L.end,L.step+2);L.handed=true}MUS.cur=null}
 function musPlay(id){
   MUS.want=id;if(!MUS.ctx||musVol()===0){updMusUI();return}
-  if(MUS.songId===id&&MUS.song)return;
-  const c=MUS.ctx,old=MUS.gain;if(old){old.gain.setTargetAtTime(0,c.currentTime,.25);setTimeout(()=>old.disconnect(),1500)}
-  const song=SONGS[id];if(!song)return;if(!song._mel)song._mel=parseMel(song.mel);
-  MUS.song=song;MUS.songId=id;MUS.step=0;MUS.next=c.currentTime+.35;
-  const g=MUS.gain=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(1,c.currentTime+.8);g.connect(MUS.master);
-  if(!MUS.timer)MUS.timer=setInterval(musTick,40);updMusUI();
+  if(MUS.cur&&MUS.cur.id===id)return;
+  if(!SONGS[id])return;const c=MUS.ctx;
+  musFadeAll(.6);
+  musLayer(id,MUS.vi[id]||0,c.currentTime+.35,.8);
+  if(!MUS.timer)MUS.timer=setInterval(musTick,40);
 }
-function musStop(){if(MUS.gain&&MUS.ctx){const g=MUS.gain;g.gain.setTargetAtTime(0,MUS.ctx.currentTime,.15);setTimeout(()=>g.disconnect(),800)}MUS.gain=null;MUS.song=null;MUS.songId=''}
+function musStop(){musFadeAll(.3)}
 function musSetVol(v,mute){S.settings.mvol=v;if(mute!=null)S.settings.mmute=mute;save();
   if(!MUS.ctx){if(musVol()>0)musUnlock();updMusUI();return}
   MUS.master.gain.setTargetAtTime(musVol(),MUS.ctx.currentTime,.05);
   if(musVol()===0)musStop();else{if(MUS.ctx.state!=='running')MUS.ctx.resume();musPlay(MUS.want)}updMusUI()}
 function musUnlock(){if(musVol()===0)return;if(!musInit())return;if(MUS.ctx.state!=='running')MUS.ctx.resume();musPlay(MUS.want)}
 function musFor(){if(V==='game'&&G)return G.mode==='story'?(G.world||'cp'):'vs';if(V==='lobby'||V==='vs')return 'vs';if(V==='worlds')return 'home';if(V==='floors'||V==='dlg')return WSEL;return 'home'}
-function musSync(){const id=musFor();if(id!==MUS.want||(!MUS.song&&MUS.ctx&&musVol()>0))musPlay(id)}
+function musSync(){const id=musFor();if(id!==MUS.want||(!MUS.cur&&MUS.ctx&&musVol()>0))musPlay(id)}
 function updMusUI(){const el=document.getElementById('mus');if(!el)return;const st=S.settings,v=st.mvol==null?.5:st.mvol,off=st.mmute||v===0;
   el.querySelector('#musb').innerHTML=off?'🔇':v<.34?'🔈':v<.67?'🔉':'🔊';el.querySelector('#musb').setAttribute('aria-label',off?'Unmute music':'Mute music');
   const r=el.querySelector('#musv');if(+r.value!==Math.round(v*100))r.value=Math.round(v*100);
-  const t=el.querySelector('#must');const s=SONGS[MUS.want];t.textContent=off?'music off':!MUS.ctx||!MUS.song?'♪ tap anywhere to start':'♪ '+(s?s.title:'')}
+  const t=el.querySelector('#must');const s=MUS.cur?MUS.cur.song:(SONGS[MUS.want]||[])[MUS.vi[MUS.want]||0];t.textContent=off?'music off':!MUS.ctx||!MUS.cur?'♪ tap anywhere to start':'♪ '+(s?s.title:'')}
 function musMount(){if(document.getElementById('mus'))return;const st=S.settings;if(st.mvol==null)st.mvol=.5;
   const el=document.createElement('div');el.id='mus';el.className='mus';el.setAttribute('role','group');el.setAttribute('aria-label','Music');
   el.innerHTML=`<button id="musb" type="button" title="Mute / unmute music"></button><input id="musv" type="range" min="0" max="100" step="5" value="${Math.round(st.mvol*100)}" aria-label="Music volume"><span id="must" class="must"></span>`;
