@@ -1,0 +1,44 @@
+{
+  "rules": {
+    "lb": {
+      "$board": {
+        ".read": true,
+        ".indexOn": ["score"],
+        "$entry": {
+          ".write": "auth != null && !data.exists() && ($board === 'vs' || $board === 'cp-1' || $board === 'cp-2' || $board === 'cp-3')",
+          ".validate": "newData.hasChildren(['uid','name','score','ts']) && newData.child('uid').val() === auth.uid && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 40000 && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 10 && newData.child('ts').val() <= now"
+        }
+      }
+    },
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('meta/host').val() === auth.uid)",
+        ".validate": "$code.length <= 12",
+        "meta": {
+          ".validate": "newData.hasChildren(['host','status']) && (!data.exists() || newData.child('host').val() === data.child('host').val())"
+        },
+        "slots": {
+          "$id": {
+            ".write": "auth != null && ($id === auth.uid || root.child('rooms').child($code).child('meta/host').val() === auth.uid)",
+            ".validate": "!newData.exists() || (newData.child('n').isString() && newData.child('n').val().length <= 24)"
+          }
+        },
+        "chat": {
+          "$msg": {
+            ".write": "auth != null && !data.exists() && root.child('rooms').child($code).child('meta').exists()",
+            ".validate": "newData.child('t').isString() && newData.child('t').val().length <= 140 && (newData.child('uid').val() === auth.uid || root.child('rooms').child($code).child('meta/host').val() === auth.uid)"
+          }
+        },
+        "inputs": {
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid"
+          }
+        },
+        "state": {
+          ".write": "auth != null && root.child('rooms').child($code).child('meta/host').val() === auth.uid"
+        }
+      }
+    }
+  }
+}
