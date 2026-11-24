@@ -247,7 +247,6 @@ kbd{font-family:'VT323',monospace;border:2px solid #444;padding:0 4px;font-size:
 .chat .log .emo .dim{font-size:.85em}
 @media(max-width:480px){.pubrow{grid-template-columns:minmax(0,1fr) auto auto}.pubrow .ps{grid-column:1}}
 /* ---- campus chat (home screen) ---- */
-#gslot{max-width:640px;margin:18px auto 0;text-align:left}
 .gchat .chat{height:260px}
 .gchat.off{border:2px dashed #444;padding:8px 12px}
 .gname{font:inherit;color:inherit;padding:0;min-height:0;border:0;background:none;cursor:pointer;text-decoration:underline dotted #555}
@@ -256,3 +255,34 @@ kbd{font-family:'VT323',monospace;border:2px solid #444;padding:0 4px;font-size:
 .lnk{font:inherit;color:var(--gold);background:none;border:0;padding:0;min-height:0;text-decoration:underline;cursor:pointer}
 .chat .log .gname{border:0;padding:0;font-size:inherit;min-height:0;line-height:inherit}
 .chat .log .ginv .btn{border:3px solid #fff;padding:0 10px}
+
+/* ---- home layout: menu left, campus chat right ---- */
+.credit{display:inline-block;margin-top:8px;font:500 15px 'Pixelify Sans',monospace;color:#000;background:var(--gold);padding:2px 10px;letter-spacing:.03em;transform:rotate(-2deg)}
+.credit b{font-weight:700}
+.tblock{display:flex;flex-direction:column;align-items:center}
+.homeR{text-align:left;min-width:0}
+.homeR .gchat{display:flex;flex-direction:column}
+.homeR .gchat .chat{flex:1;min-height:0}
+#app.wide{max-width:1180px}
+@media(min-width:860px){
+  .home{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,460px);gap:28px;align-items:start}
+  .homeL .title{padding-top:clamp(4px,2vh,24px);gap:14px}
+  .homeL .title .potato{width:clamp(80px,13vh,130px)}
+  .homeL h1{font-size:clamp(40px,7.5vh,68px)}
+  .homeL .flav{margin:0}
+  .homeL .mi{min-height:clamp(34px,5.2vh,46px)}
+  .homeR{position:sticky;top:12px}
+  .homeR .gchat{height:calc(100vh - 40px)}
+  .homeR .gchat .chat{height:auto}
+  .homeR .chathd{margin-top:4px}
+}
+@media(max-width:859px){
+  .homeL .title{gap:10px;padding-top:4px}
+  .homeL .title .potato{width:64px}
+  .homeL h1{font-size:clamp(34px,9vw,48px)}
+  .homeL .flav{display:none}
+  .homeL .menu{grid-template-columns:1fr 1fr;width:100%;gap:2px}
+  .homeL .mi{font-size:18px;min-height:40px;padding:2px 6px}
+  .homeL .note{display:none}
+  .homeR .gchat .chat{height:min(46vh,360px)}
+}

@@ -197,6 +197,7 @@ let V='title',menuI=0,dlg=null,G=null,tick=null,last=0,confirmReset=false,flavI=
 let WSEL='cp',BOARD='story',BW='cp',BF=0,BOARDDATA={},LOBBY=null,CHAT=[],JOINERR='',unwatch=null;
 function go(v){V=v;menuI=0;confirmReset=false;render()}
 function render(){
+  app.classList.toggle('wide',V==='title');
   if(V==='title'){app.innerHTML=titleV();gMount()}
   else if(V==='profile')app.innerHTML=profileV();
   else if(V==='worlds')app.innerHTML=worldsV();
@@ -214,10 +215,10 @@ function render(){
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
 const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
 function titleV(){
-  return `<div class="title"><div class="potato">${SPUD()}</div><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><p class="flav">${FLAV[flavI]}</p>
+  return `<div class="home"><div class="homeL"><div class="title"><div class="potato">${SPUD()}</div><div class="tblock"><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><div class="credit">made by <b>COOPER</b> from Civ Pro</div></div><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
-  <p class="dim" style="font-size:15px">${prof().name?`Signed in as ${crownN(ME)?crownSvg(crownN(ME),'inline'):''}<span class="gold">${esc(prof().name)}</span> · `:'Make a profile before you play · '}${onlineBadge()}</p></div>
-  <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p><div id="gslot"></div>`;
+  <p class="dim signed" style="font-size:15px">${prof().name?`Signed in as ${crownN(ME)?crownSvg(crownN(ME),'inline'):''}<span class="gold">${esc(prof().name)}</span> · `:'Make a profile before you play · '}${onlineBadge()}</p></div>
+  <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p></div><div class="homeR" id="gslot"></div></div>`;
 }
 function profileV(){
   const p=prof();
