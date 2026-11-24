@@ -286,3 +286,13 @@ kbd{font-family:'VT323',monospace;border:2px solid #444;padding:0 4px;font-size:
   .homeL .note{display:none}
   .homeR .gchat .chat{height:min(46vh,360px)}
 }
+/* ---- accounts & admin ---- */
+.nmstat{min-height:1.4em;font-size:14px;margin:4px 0 2px}
+.acct{margin-top:20px;border-top:2px dashed #444;padding-top:14px}
+.acct input{width:100%;max-width:320px;display:block}
+.admintag{font-size:11px;color:#000;background:#ffd84a;padding:0 4px;margin:0 4px;vertical-align:middle;letter-spacing:.05em}
+.adminmsg{color:#ffd84a}
+.chat .log .gdel{border:0;padding:0 4px;min-height:0;font-size:12px;color:var(--dim);background:none;cursor:pointer}
+.chat .log .gdel:hover{color:var(--bad,#ff5a5a)}
+input[type=password]{font:20px 'Atkinson Hyperlegible Mono',monospace;background:#000;color:#fff;border:4px solid #fff;padding:6px 10px;width:100%}
+input[type=text]:disabled{opacity:.6}

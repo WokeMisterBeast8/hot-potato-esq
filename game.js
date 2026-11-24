@@ -119,9 +119,63 @@ const withCrown=(id,svg)=>{const n=crownN(id);return n?`<span class="crowned">${
 
 /* ================= online ================= */
 let ON=null,ME='me',onState=window.HP_FIREBASE?'connecting':'off',onErr='';
+/* ================= accounts ================= */
+let ADMINUID=null,NAMEBUMP='',NAMESTAT={n:'',st:''},nameT=0,ACCTMSG='',ACCTBUSY=false;
+const ADMINNAME='COOPER',ADMINC='#ffd84a';
+const isAdmin=uid=>!!uid&&uid===ADMINUID;
+async function accountBoot(){
+  try{ADMINUID=await ON.nameOwner(ADMINNAME)}catch(e){}
+  if(ON.regName){S.reg=ON.regName;S.profile.name=ON.regName;save();return}
+  S.reg=null;const n=prof().name;if(!n)return;
+  try{const o=await ON.nameOwner(n);if(o&&o!==ME){NAMEBUMP=n;S.profile.name='';save()}}catch(e){}
+}
+// Live availability check while typing a username.
+function checkName(n){
+  n=(n||'').trim().toUpperCase();clearTimeout(nameT);
+  if(!n){NAMESTAT={n:'',st:''};drawNameStat();return}
+  if(!ON){NAMESTAT={n,st:'offline'};drawNameStat();return}
+  if(S.reg&&n===S.reg){NAMESTAT={n,st:'mine'};drawNameStat();return}
+  NAMESTAT={n,st:'checking'};drawNameStat();
+  nameT=setTimeout(async()=>{let o=null;try{o=await ON.nameOwner(n)}catch(e){NAMESTAT={n,st:'err'};drawNameStat();return}
+    if((document.getElementById('nm')||{}).value&&document.getElementById('nm').value.trim().toUpperCase()!==n)return;
+    NAMESTAT={n,st:o?(o===ME?'mine':'taken'):(ON.validRegName(n)?'free':'freeonly')};drawNameStat()},350);
+}
+function nameStatHTML(){const s=NAMESTAT.st,n=esc(NAMESTAT.n);
+  return s==='checking'?'<span class="dim">checking…</span>':s==='free'?`<span class="good">✓ ${n} is available</span>`:s==='freeonly'?`<span class="good">✓ available</span> <span class="dim">(to register it, use only letters, numbers, _ and -)</span>`:s==='mine'?`<span class="good">✓ registered to you</span>`:s==='taken'?`<span class="bad">✗ ${n} is registered. Log in below if it’s yours.</span>`:s==='offline'?'<span class="dim">offline: names can’t be checked</span>':s==='err'?'<span class="dim">couldn’t check right now</span>':''}
+function drawNameStat(){const el=document.getElementById('nmstat');if(el)el.innerHTML=nameStatHTML();const b=document.getElementById('save');if(b)b.disabled=NAMESTAT.st==='taken'||NAMESTAT.st==='checking'}
+function acctV(){
+  if(onState!=='on')return `<div class="acct"><h3>ACCOUNT</h3><p class="dim" style="font-size:15px">Registering a name needs online play.</p></div>`;
+  if(S.reg)return `<div class="acct"><h3>ACCOUNT</h3><p class="good" style="margin:6px 0">🔒 Logged in as <b>${esc(S.reg)}</b>${isAdmin(ME)?' <span class="admintag">ADMIN</span>':''}</p><p class="dim" style="font-size:14px;margin:0 0 10px">This name is yours. You stay logged in on this browser. Log in on other devices with your name and password.</p><button class="btn sm" data-act="logout" id="logout">LOG OUT</button>${ACCTMSG?`<p class="vt" style="margin:8px 0 0">${esc(ACCTMSG)}</p>`:''}</div>`;
+  return `<div class="acct"><h3>REGISTER YOUR NAME <span class="dim" style="font-size:14px">(optional)</span></h3>
+  <p class="dim" style="font-size:14px;margin:4px 0 8px">Add a password so nobody else can use your name, and stay logged in. No email needed. Any password with 8 or more characters works.</p>
+  <form id="regf" autocomplete="on"><input type="hidden" autocomplete="username" value="${esc(prof().name)}"><input type="password" id="pw1" minlength="8" maxlength="64" placeholder="password (8+ characters)" autocomplete="new-password" aria-label="New password"><input type="password" id="pw2" minlength="8" maxlength="64" placeholder="type it again" autocomplete="new-password" aria-label="Confirm password" style="margin-top:6px"><button class="btn gold" type="submit" id="regb" style="margin-top:8px" ${ACCTBUSY?'disabled':''}>REGISTER ${esc(prof().name||'NAME')}</button></form>
+  <h3 style="margin-top:18px">ALREADY REGISTERED? LOG IN</h3>
+  <form id="logf" autocomplete="on"><input type="text" id="lgn" maxlength="10" placeholder="username" autocomplete="username" spellcheck="false" aria-label="Username"><input type="password" id="lgp" maxlength="64" placeholder="password" autocomplete="current-password" aria-label="Password" style="margin-top:6px"><button class="btn" type="submit" id="logb" style="margin-top:8px" ${ACCTBUSY?'disabled':''}>LOG IN</button></form>
+  ${ACCTMSG?`<p class="vt" style="margin:8px 0 0">${esc(ACCTMSG)}</p>`:''}
+  <p class="dim" style="font-size:13px;margin-top:10px">There’s no password reset without email, so pick one you’ll remember.</p></div>`;
+}
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='regf'&&e.target.id!=='logf')return;e.preventDefault();if(ACCTBUSY||!ON)return;
+  if(e.target.id==='regf'){
+    keepName();const n=prof().name,a=document.getElementById('pw1').value,b=document.getElementById('pw2').value;
+    if(!n){ACCTMSG='Type a username above first.';render();return}
+    if(a.length<8){ACCTMSG='Passwords need at least 8 characters.';render();return}
+    if(a!==b){ACCTMSG='The two passwords don’t match.';render();return}
+    ACCTBUSY=true;ACCTMSG='Registering…';render();
+    try{await ON.register(n,a);S.reg=n;S.profile.name=n;save();ACCTMSG=`Done. ${n} is registered to you.`;if(n===ADMINNAME)ADMINUID=ME}catch(err){ACCTMSG=err.message||String(err)}
+    ACCTBUSY=false;render();
+  }else{
+    const n=document.getElementById('lgn').value.trim().toUpperCase(),p=document.getElementById('lgp').value;
+    if(!n||!p){ACCTMSG='Enter your username and password.';render();return}
+    ACCTBUSY=true;ACCTMSG='Logging in…';render();
+    try{await ON.login(n,p);S.reg=n;S.profile.name=n;save();location.reload();return}catch(err){ACCTMSG=err.message||String(err)}
+    ACCTBUSY=false;render();
+  }
+});
+
 async function goOnline(){
   if(!window.HP_FIREBASE)return;
-  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';loadCrowns();gStart();}
+  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';await accountBoot();loadCrowns();gStart();}
   catch(e){onState='error';onErr=String(e&&e.message||e);console.warn('Online unavailable:',e)}
   render();
 }
@@ -164,15 +218,16 @@ function genQ(t,used){
 
 /* ================= campus chat (home screen) ================= */
 let gPend={},GCHAT=[],GNODE=null,gOff=null,lastGT=-1e9,lastGText='',lastInvT=-1e9;
-function gStart(){if(!ON||gOff)return;ON.gchatPrune().catch(()=>{});gOff=ON.gchatWatch(m=>{if(GCHAT.some(x=>x.key===m.key))return;GCHAT.push(m);if(GCHAT.length>80)GCHAT.shift();gAppend(m)})}
+function gStart(){if(!ON||gOff)return;ON.gchatPrune().catch(()=>{});gOff=ON.gchatWatch(m=>{if(GCHAT.some(x=>x.key===m.key))return;GCHAT.push(m);if(GCHAT.length>80)GCHAT.shift();gAppend(m)},k=>{const i=GCHAT.findIndex(x=>x.key===k);if(i>=0){GCHAT.splice(i,1);gDraw()}})}
 const muted=()=>S.muted||(S.muted=[]);
 function gLine(c){
   if(c.uid&&muted().includes(c.uid))return '';
-  const who=`<button class="gname" data-act="gmute" data-v="${esc(c.uid||'')}" title="Mute this player" style="color:${esc(c.c||'#fff')}">${nm(c.n)}</button>${c.uid===ME?'':''}`;
+  const adm=isAdmin(c.uid),del=isAdmin(ME)&&c.key?`<button class="gdel" data-act="gdel" data-v="${esc(c.key)}" title="Delete message (admin)" aria-label="Delete message">✕</button>`:'';
+  const who=`${del}<button class="gname" data-act="gmute" data-v="${esc(c.uid||'')}" title="Mute this player" style="color:${adm?ADMINC:esc(c.c||'#fff')}">${nm(c.n)}</button>${adm?'<span class="admintag">ADMIN</span>':''}`;
   if(c.inv&&/^SPUD-[A-Z0-9]{4}$/.test(c.inv))return `<div class="ginv">${who} is hosting a lobby <button class="btn sm" data-act="joinpub" data-v="${esc(c.inv)}" id="gj-${esc(c.key||c.inv)}">JOIN ${esc(c.inv)}</button></div>`;
   if(c.cr){const n=Math.min(+c.cr||0,Object.keys(CROWNS).length?crownN(c.uid):0);return n>0?`<div class="emo">${who} <span class="crownemo">${crownSvg(n)}</span><span class="dim">${esc(CROWNNAME[n].toUpperCase())}</span></div>`:''}
   if(c.e&&EMO[c.e])return `<div class="emo">${who} <span class="em">${EMO[c.e].i}</span><span class="dim">${esc(EMO[c.e].t)}</span></div>`;
-  return `<div>${who}: ${esc(censor(c.t||''))}</div>`}
+  return `<div class="${adm?'adminmsg':''}">${who}: ${esc(censor(c.t||''))}</div>`}
 function gAppend(m){const l=GNODE&&GNODE.querySelector('#gchatlog');if(!l)return;const near=l.scrollHeight-l.scrollTop-l.clientHeight<60;const ph=l.querySelector('.ph');if(ph)ph.remove();l.insertAdjacentHTML('beforeend',gLine(m));if(near||m.uid===ME)l.scrollTop=l.scrollHeight}
 function gDraw(){const l=GNODE&&GNODE.querySelector('#gchatlog');if(!l)return;l.innerHTML=GCHAT.map(gLine).join('')||'<div class="sys ph">No messages yet. Say hi, or host a game.</div>';l.scrollTop=l.scrollHeight;const m=GNODE.querySelector('#gmuted');if(m)m.innerHTML=muted().length?`${muted().length} muted · <button class="lnk" data-act="gunmute">unmute all</button>`:'tap a name to mute'}
 function gMount(){
@@ -221,13 +276,13 @@ function titleV(){
   <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p></div><div class="homeR" id="gslot"></div></div>`;
 }
 function profileV(){
-  const p=prof();
+  const p=prof();if(ON&&!S.reg&&p.name&&NAMESTAT.n!==p.name)setTimeout(()=>checkName(p.name),0);
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>WHO ARE YOU?</h2>
   <div class="prof"><div class="pv">${withCrown(ME,myIcon())}<div class="gold" style="font-size:22px">${esc(p.name||'???')}</div><p class="vt dim" style="margin:0">${p.name?'You look ready. You are not. That’s fine.':'The potato would like to know your name.'}</p>${crownBlock()}</div>
-  <div><div class="lbl">USERNAME (up to 10 characters)</div><input type="text" id="nm" maxlength="10" value="${esc(p.name)}" autocomplete="off" spellcheck="false">
+  <div>${NAMEBUMP?`<p class="bad" style="margin:0 0 8px">${esc(NAMEBUMP)} was registered by another player, so pick a new name (or log in below if it’s you).</p>`:''}<div class="lbl">USERNAME (up to 10 characters)</div><input type="text" id="nm" maxlength="10" value="${esc(p.name)}" autocomplete="off" spellcheck="false" ${S.reg?'disabled title="Registered names are locked. Log out to use a different name."':''}><div id="nmstat" class="nmstat" aria-live="polite">${S.reg?'<span class="good">🔒 registered to you</span>':nameStatHTML()}</div>
   <div class="lbl">ICON</div><div class="icons">${ICONS.map((n,i)=>`<button class="ic" data-act="icon" data-v="${i}" id="ic-${i}" aria-pressed="${p.icon===i}" aria-label="${n}">${spr(n,COLORS[p.color])}</button>`).join('')}</div>
   <div class="lbl">COLOR</div><div class="sws">${COLORS.map((c,i)=>`<button class="sw" style="background:${c}" data-act="color" data-v="${i}" id="sw-${i}" aria-pressed="${p.color===i}" aria-label="color ${i+1}"></button>`).join('')}</div>
-  <div class="row" style="margin-top:16px"><button class="btn gold" data-act="saveprof" id="save">SAVE</button></div></div></div></div>`;
+  <div class="row" style="margin-top:16px"><button class="btn gold" data-act="saveprof" id="save" ${NAMESTAT.st==='taken'?'disabled':''}>SAVE</button></div>${acctV()}</div></div></div>`;
 }
 function crownBlock(){const n=crownN(ME),tot=CROWNS[ME]||0;
   return `<div class="crownbox">${n?`<p class="gold" style="margin:0 0 6px">${CROWNNAME[n]} · #1 on ${tot} global leaderboard${tot>1?'s':''}</p>`:`<p class="dim" style="margin:0 0 6px;font-size:14px">${onState==='on'?'Hold #1 on any global leaderboard to wear a crown.':'Crowns are earned on the global leaderboards when online play is on.'}</p>`}
@@ -431,10 +486,11 @@ function withChat(html,on,cls){
 }
 function chatLine(c){
   if(c.sys)return `<div class="sys">${esc(c.t)}</div>`;
-  const who=`<b style="color:${esc(c.c)}">${nm(c.n)}</b>${c.bot?'<span class="bot">BOT</span>':''}`;
+  const adm=!c.bot&&isAdmin(c.uid);
+  const who=`<b style="color:${adm?ADMINC:esc(c.c)}">${nm(c.n)}</b>${adm?'<span class="admintag">ADMIN</span>':''}${c.bot?'<span class="bot">BOT</span>':''}`;
   if(c.cr){const n=Math.min(+c.cr||0,c.uid&&Object.keys(CROWNS).length?crownN(c.uid):3);if(n>0)return `<div class="emo">${who} <span class="crownemo">${crownSvg(n)}</span><span class="dim">${esc(CROWNNAME[n].toUpperCase())}</span></div>`;return ''}
   if(c.e&&EMO[c.e])return `<div class="emo">${who} <span class="em">${EMO[c.e].i}</span><span class="dim">${esc(EMO[c.e].t)}</span></div>`;
-  return `<div>${who}: ${esc(censor(c.t))}</div>`}
+  return `<div class="${adm?'adminmsg':''}">${who}: ${esc(censor(c.t))}</div>`}
 function drawChat(){const l=document.getElementById('chatlog');if(!l)return;l.innerHTML=CHAT.map(chatLine).join('');l.scrollTop=l.scrollHeight}
 function chatPush(c){CHAT.push(c);if(CHAT.length>150)CHAT.shift();const l=document.getElementById('chatlog');if(l){l.insertAdjacentHTML('beforeend',chatLine(c));l.scrollTop=l.scrollHeight}}
 function chatSys(t){const c={sys:true,t};if(LOBBY&&LOBBY.net){if(LOBBY.host)ON.chat(LOBBY.code,{uid:ME,sys:true,t,n:'',c:''})}else chatPush(c)}
@@ -529,7 +585,7 @@ async function leaveLobby(hostGone,msg){
   JOINERR=msg||(hostGone?'The host closed that lobby.':'');go('vs');
 }
 function addBot(d){
-  const sl=lobbySlotsArr();if(sl.length>=8)return;const used=sl.map(x=>x.id),free=BOTPOOL.filter(k=>!used.includes('bot_'+k));if(!free.length)return;
+  const sl=lobbySlotsArr();if(sl.length>=lcfg().max)return;const used=sl.map(x=>x.id),free=BOTPOOL.filter(k=>!used.includes('bot_'+k));if(!free.length)return;
   const k=pick(free),c=CPU[k],slot={n:c.n,s:c.s,c:c.c,bot:true,diff:d,order:Date.now()};
   if(LOBBY.net)ON.setSlot(LOBBY.code,'bot_'+k,slot);else{LOBBY.slots['bot_'+k]=slot;render()}
   chatSys(`${c.n} (bot, ${d}) joined.`);if(Math.random()<.7)setTimeout(()=>chatSend({n:c.n,c:c.c},pick(BOTCHAT.hi),true),500);
@@ -639,7 +695,10 @@ function act(a,v,el){
   else if(a==='home'){if(LOBBY&&V==='boards'){if(LOBBY.host){act('tolobby');return}V='lobby';render();return}if(LOBBY){leaveLobby();return}stopLoop();G=null;flavI=(flavI+1)%FLAV.length;go('title')}
   else if(a==='icon'){S.profile.icon=+v;keepName();render()}
   else if(a==='color'){S.profile.color=+v;keepName();render()}
-  else if(a==='saveprof'){keepName();S.profile.name=censor(S.profile.name);if(!S.profile.name)S.profile.name='SPUD';save();go('title')}
+  else if(a==='logout'){if(!ON)return;ACCTBUSY=true;ON.logout().then(()=>{S.reg=null;S.profile.name='';save();location.reload()}).catch(()=>{ACCTBUSY=false})}
+  else if(a==='gdel'){if(!isAdmin(ME)||!ON||!v)return;ON.gchatDel(v).catch(()=>{})}
+  else if(a==='saveprof'){keepName();S.profile.name=censor(S.profile.name);
+    if(ON&&!S.reg&&S.profile.name){const n=S.profile.name;ON.nameOwner(n).then(o=>{if(o&&o!==ME){NAMESTAT={n,st:'taken'};S.profile.name='';save();render()}}).catch(()=>{})}if(!S.profile.name)S.profile.name='SPUD';save();go('title')}
   else if(a==='world'){WSEL=v;stopLoop();G=null;go('floors')}
   else if(a==='floor')startStory(WSEL,+v);
   else if(a==='dlg')dlgAdv();
@@ -664,7 +723,7 @@ function act(a,v,el){
   else if(a==='emote')sendEmote(v);
   else if(a==='gemotes'){const el2=GNODE&&GNODE.querySelector('#gemotes');if(el2){el2.hidden=!el2.hidden;if(!el2.hidden)gEmotePanel()}}
   else if(a==='gemote'){const el2=GNODE&&GNODE.querySelector('#gemotes');if(el2)el2.hidden=true;if(!gOK('emo:'+v+':'+performance.now()))return;if(v==='crown'){const n=crownN(ME);if(n)gSend({cr:n})}else if(EMO[v])gSend({e:v})}
-  else if(a==='gmute'){if(!v||v===ME)return;const now=performance.now();if(gPend.id!==v||now-gPend.t>4000){gPend={id:v,t:now};const m=GNODE&&GNODE.querySelector('#gmuted');if(m)m.textContent=`tap ${censor(el.textContent)} again to mute`;return}gPend={};const m=muted();if(!m.includes(v))m.push(v);save();gDraw()}
+  else if(a==='gmute'){if(!v||v===ME||isAdmin(v))return;const now=performance.now();if(gPend.id!==v||now-gPend.t>4000){gPend={id:v,t:now};const m=GNODE&&GNODE.querySelector('#gmuted');if(m)m.textContent=`tap ${censor(el.textContent)} again to mute`;return}gPend={};const m=muted();if(!m.includes(v))m.push(v);save();gDraw()}
   else if(a==='gunmute'){S.muted=[];save();gDraw()}
   else if(a==='ghost'){if(!prof().name){go('profile');return}mkLobby('pub').then(()=>{if(LOBBY&&LOBBY.net){postInvite();chatSys('Invite posted to campus chat.')}})}
   else if(a==='ginvite'){if(postInvite())chatSys('Invite posted to campus chat.');else chatSys('You can post an invite every 30 seconds.')}
@@ -675,13 +734,14 @@ function act(a,v,el){
   else if(a==='set'){S.settings[el.dataset.k]=+v;save();render()}
   else if(a==='reset'){if(confirmReset){const p=S.profile;S=DEF();S.profile=p;save();confirmReset=false;go('title')}else{confirmReset=true;render()}}
 }
-function keepName(){const el=document.getElementById('nm');if(el)S.profile.name=el.value.trim().toUpperCase().slice(0,10)}
+function keepName(){if(S.reg){S.profile.name=S.reg;return}const el=document.getElementById('nm');if(el)S.profile.name=el.value.trim().toUpperCase().slice(0,10)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;act(t.dataset.act,t.dataset.v,t)});
 document.addEventListener('submit',e=>{if(e.target.id!=='joinf')return;e.preventDefault();joinLobby(document.getElementById('joincode').value)});
-document.addEventListener('input',e=>{if(e.target.id==='nm')S.profile.name=e.target.value.toUpperCase().slice(0,10)});
+document.addEventListener('input',e=>{if(e.target.id==='nm'){if(S.reg){e.target.value=S.reg;return}S.profile.name=e.target.value.toUpperCase().slice(0,10);NAMEBUMP='';checkName(S.profile.name);const rb=document.getElementById('regb');if(rb)rb.textContent='REGISTER '+(S.profile.name||'NAME')}});
 document.addEventListener('keydown',e=>{
   if(e.target.id==='chatin'||e.target.id==='joincode'||e.target.id==='gchatin')return;
-  if(e.target.tagName==='INPUT'){if(e.key==='Enter'){keepName();save();go('title')}return}
+  if(['pw1','pw2','lgn','lgp'].includes(e.target.id))return;
+  if(e.target.tagName==='INPUT'){if(e.key==='Enter'){if(NAMESTAT.st==='taken')return;keepName();save();go('title')}return}
   if(V==='title'){if(e.key==='ArrowDown'||e.key==='s'){menuI=(menuI+1)%MENU.length;render();e.preventDefault()}else if(e.key==='ArrowUp'||e.key==='w'){menuI=(menuI+MENU.length-1)%MENU.length;render();e.preventDefault()}else if(e.key==='Enter'||e.key===' '){e.preventDefault();act('menu',MENU[menuI][1])}return}
   if(V==='dlg'&&(e.key==='Enter'||e.key===' '||e.key==='z')){e.preventDefault();dlgAdv();return}
   if(V==='game'&&G){

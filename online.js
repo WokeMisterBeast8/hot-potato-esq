@@ -1,4 +1,5 @@
-// Hot Potato, Esq. — online layer (Firebase Realtime Database + anonymous sign-in).
+// Hot Potato, Esq. — online layer (Firebase Realtime Database + anonymous sign-in,
+// with optional username + password registration; no emails are ever sent).
 // Loaded only when config.js provides a Firebase config. Everything here is optional:
 // the game runs offline without it.
 const V = '10.12.2';
@@ -6,22 +7,70 @@ const base = `https://www.gstatic.com/firebasejs/${V}/`;
 
 export async function connect(config) {
   const { initializeApp } = await import(base + 'firebase-app.js');
-  const { getAuth, signInAnonymously, onAuthStateChanged } = await import(base + 'firebase-auth.js');
+  const { getAuth, signInAnonymously, onAuthStateChanged, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut } = await import(base + 'firebase-auth.js');
   const D = await import(base + 'firebase-database.js');
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = D.getDatabase(app);
+  // Reuse whoever is already signed in on this browser (keeps registered players logged in);
+  // otherwise start an anonymous session.
   const user = await new Promise((res, rej) => {
-    const stop = onAuthStateChanged(auth, u => { if (u) { stop(); res(u); } });
-    signInAnonymously(auth).catch(rej);
+    let first = true;
+    const stop = onAuthStateChanged(auth, u => {
+      if (u) { stop(); res(u); return; }
+      if (first) { first = false; signInAnonymously(auth).catch(rej); }
+    });
   });
   let offset = 0;
   D.onValue(D.ref(db, '.info/serverTimeOffset'), s => { offset = s.val() || 0; });
   const r = p => D.ref(db, p);
   const clean = o => JSON.parse(JSON.stringify(o)); // strips undefined
 
+  // Registered usernames map to a placeholder address that never receives mail.
+  const KEYRX = /^[a-z0-9_-]{1,10}$/;
+  const nameKey = n => String(n || '').toLowerCase().replace(/[.#$\[\]\/]/g, '_');
+  const mailOf = n => nameKey(n) + '@example.com';
+  const authMsg = e => {
+    const c = (e && e.code) || '';
+    if (c.includes('email-already-in-use') || c.includes('credential-already-in-use')) return 'That name is already registered.';
+    if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found') || c.includes('invalid-email')) return 'Wrong username or password.';
+    if (c.includes('too-many-requests')) return 'Too many tries. Wait a few minutes and try again.';
+    if (c.includes('weak-password')) return 'Passwords need at least 8 characters.';
+    if (c.includes('operation-not-allowed')) return 'Registration isn’t switched on yet. The site owner needs to enable Email/Password sign-in in Firebase (see UPDATE.md).';
+    if (c.includes('network')) return 'Network problem. Try again.';
+    return (e && e.message) || 'Something went wrong.';
+  };
+  const regName = u => (!u.isAnonymous && u.email && u.email.endsWith('@example.com')) ? u.email.split('@')[0].toUpperCase() : null;
+
   const api = {
     uid: user.uid,
+    regName: regName(user),
+    nameKey,
+    validRegName: n => KEYRX.test(nameKey(n)),
+    async nameOwner(name) {
+      if (!name) return null;
+      const s = await D.get(r('names/' + nameKey(name)));
+      return s.exists() ? s.val() : null;
+    },
+    // Turn this anonymous player into a registered one. Same uid, so scores and crowns carry over.
+    async register(name, pw) {
+      if (!KEYRX.test(nameKey(name))) throw new Error('Registered names can use only letters, numbers, _ and -.');
+      if (String(pw).length < 8) throw new Error('Passwords need at least 8 characters.');
+      const owner = await api.nameOwner(name);
+      if (owner && owner !== user.uid) throw new Error('That name is already registered.');
+      if (!user.isAnonymous) throw new Error('This browser is already logged in to a registered name.');
+      try { await linkWithCredential(user, EmailAuthProvider.credential(mailOf(name), pw)); }
+      catch (e) { throw new Error(authMsg(e)); }
+      await user.getIdToken(true); // refresh the token so the database sees the new sign-in method
+      await D.set(r('names/' + nameKey(name)), user.uid);
+      api.regName = String(name).toUpperCase();
+    },
+    async login(name, pw) {
+      try { await signInWithEmailAndPassword(auth, mailOf(name), pw); }
+      catch (e) { throw new Error(authMsg(e)); }
+    },
+    async logout() { await signOut(auth); },
+
     now: () => Date.now() + offset,
 
     // ---------- leaderboards ----------
@@ -42,9 +91,13 @@ export async function connect(config) {
     },
 
     // ---------- campus (global) chat ----------
-    gchatWatch(cb) {
-      return D.onChildAdded(D.query(r('gchat'), D.orderByChild('ts'), D.limitToLast(60)), s => cb({ key: s.key, ...s.val() }));
+    gchatWatch(cb, onRemove) {
+      const q = D.query(r('gchat'), D.orderByChild('ts'), D.limitToLast(60));
+      const a = D.onChildAdded(q, s => cb({ key: s.key, ...s.val() }));
+      const b = onRemove ? D.onChildRemoved(q, s => onRemove(s.key)) : () => {};
+      return () => { a(); b(); };
     },
+    gchatDel: key => D.remove(r('gchat/' + key)),
     gchatSend: msg => D.push(r('gchat'), clean({ ...msg, uid: user.uid, ts: D.serverTimestamp() })),
     async gchatPrune() { // delete up to 25 messages older than a day, to keep the free database small
       const cut = Date.now() + offset - 86400000;
