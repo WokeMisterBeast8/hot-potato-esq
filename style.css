@@ -303,3 +303,5 @@ input[type=text]:disabled{opacity:.6}
 .mus .must{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
 @media(max-width:700px){.mus .must{display:none}.mus #musv{width:70px}#app{padding-top:52px}}
 @media(min-width:701px){#app{padding-top:48px}}
+.seat.streak .av{box-shadow:0 0 0 2px var(--cyan)}
+.blank{display:inline-block;min-width:4.5em;border-bottom:3px solid var(--gold);color:transparent;margin:0 4px;line-height:1}

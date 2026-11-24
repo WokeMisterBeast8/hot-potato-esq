@@ -99,6 +99,7 @@ const WORLDS=[
   win:[['tirrell','A fully performed contract. Well done.'],['mirror','A MATERIAL ALTERATION... I CANNOT ACCEPT THIS... BUT I MUST.'],['potato','we did it. the bazaar is closed. everyone go home.']],
   lose:[['mirror','YOUR ATTEMPT IS REJECTED. YOU MAY MAKE A NEW OFFER.'],['potato','try again. i’m a firm offer. irrevocable.']]}]}];
 const WBY=Object.fromEntries(WORLDS.map(w=>[w.id,w]));
+const NARR_VSSTREAK='STREAK! Bonus points on every answer, but a shorter clock. No shield outside Story Mode: a miss still costs a life.';
 const NARR={right:['Correct. The potato respects you now. A little.','Right. Somewhere, a professor nods, then forgets.','Correct. You feel briefly employable.','Correct. The potato sighs with relief.'],wrong:['Wrong. The potato burns your hand. Metaphorically. Mostly.','Incorrect. The potato is passed. So is the blame.','Not quite. Your outline flinches.'],timeout:['Time’s up. The potato made the decision for you.','You hesitated. The potato did not.'],streak:['STREAK! A thin film of confidence protects you. Your clock gets shorter, though.'],shield:['Your streak shatters like a bad outline. But you’re still standing.'],elimYou:['You are out. You go sit with the other ghosts. There are snacks.'],topic:['The topic changes. The room gets warmer. It’s the potato.','A new topic crawls out of the syllabus.','The potato spins. It lands on something you half-remember.']};
 const FLAV=['The potato is warm. It has always been warm.','Five lives. One potato. No curve. (There is a curve.)','The library never closes. It just pretends.','Remember: the potato is not your friend. The potato is everyone’s friend.','Somewhere, a 1L is reading the footnotes. Be like them. Or don’t.'];
 const BOTCHAT={hi:['hello. i am also hot.','greetings, counsel.','hi. no talking during the cold call.'],gg:['gg. the potato thanks you.','good game. i’ll be outlining this.','gg. well distributed.'],law:['objection.','sustained.','see generally, the Federal Rules.','that’s a minority rule.'],any:['...','the potato hears you.','noted for the record.','is this on the exam?','i’m just a bot. i don’t have feelings. (i have feelings.)']};
@@ -318,13 +319,14 @@ let D=null,TOP=[];
 const topicsFor=w=>TOP.filter(t=>t.world===w);
 function others(arr,i,n){return shuf(arr.map((x,j)=>[x,j]).filter(([x,j])=>j!==i&&x[0]!==arr[i][0])).slice(0,n).map(a=>a[0])}
 function genQ(t,used){
-  const T=t.terms||[],C=t.cases||[],M=t.mcq||[],H=t.hypo||[];
+  const T=t.terms||[],C=t.cases||[],M=t.mcq||[],H=t.hypo||[],FB=t.fill||[];
   const CT=C.length>=4?C.length:0;
-  const kinds=[['dt',.2,T.length],['mc',.27,M.length],['hy',.27,H.length],['hc',.04,CT],['tf',.1,T.length+CT],['td',.1,T.length],['ch',.02,CT]].filter(k=>k[2]>=4||((k[0]==='mc'||k[0]==='hy')&&k[2]>0));
+  const kinds=[['dt',.17,T.length],['mc',.22,M.length],['hy',.24,H.length],['fb',.15,FB.length],['hc',.03,CT],['tf',.09,T.length+CT],['td',.09,T.length],['ch',.01,CT]].filter(k=>k[2]>=4||((k[0]==='mc'||k[0]==='hy'||k[0]==='fb')&&k[2]>0));
   for(let tries=0;tries<14;tries++){
     let r=Math.random()*kinds.reduce((s,k)=>s+k[1],0),k=kinds[0][0];for(const x of kinds){r-=x[1];if(r<=0){k=x[0];break}}
-    const n=k==='mc'?M.length:k==='hy'?H.length:k==='tf'?T.length+CT:(k==='dt'||k==='td')?T.length:C.length,i=Math.floor(Math.random()*n),id=t.id+':'+k+':'+i;
+    const n=k==='mc'?M.length:k==='hy'?H.length:k==='fb'?FB.length:k==='tf'?T.length+CT:(k==='dt'||k==='td')?T.length:C.length,i=Math.floor(Math.random()*n),id=t.id+':'+k+':'+i;
     if(used.has(id)&&tries<13)continue;used.add(id);
+    if(k==='fb'){const m=FB[i];return {id,kind:'Fill in the blank',q:esc(m[0]).replace('___','<span class="blank" aria-label="blank">______</span>'),opts:shuf([{t:m[1],ok:1},{t:m[2]},{t:m[3]},{t:m[4]}]),ans:m[1],e:m[5]}}
     if(k==='hy'){const m=H[i];return {id,kind:'Hypothetical',hypo:true,q:`<span class="hypo">${esc(m[0])}</span>`,opts:shuf([{t:m[1],ok:1},{t:m[2]},{t:m[3]},{t:m[4]}]),ans:m[1],e:m[5]}}
     if(k==='mc'){const m=M[i];return {id,kind:'Quick question',q:esc(m[0]),opts:shuf([{t:m[1],ok:1},{t:m[2]},{t:m[3]},{t:m[4]}]),ans:m[1],e:m[5]}}
     if(k==='dt'){const m=T[i];return {id,kind:'Name that term',q:`Which term means:<span class="quote">${esc(m[1])}</span>`,opts:shuf([{t:m[0],ok:1},...others(T,i,3).map(x=>({t:x[0]}))]),ans:m[0],e:`${m[0]}: ${m[1]}`}}
@@ -466,21 +468,22 @@ function startTurn(){
   if(p.remote&&p.gone)G.cpuPlan={at:G.timer-1200,choice:-1};
   render();
 }
+const shieldOK=(g,p)=>g.mode==='story'&&isMe(p);
 function answer(i){
   if(G.phase!=='ask')return;G.pop=null;const p=G.players[G.turn],q=G.q,ok=i>=0&&!!q.opts[i].ok;G.pickI=i;p.ans++;
   if(isMe(p)){S.answered++;if(ok)S.right++}
   if(ok){
     const base=Math.round(100*Math.pow(.75,q.elim.length)),bonus=[];let m=1;
-    if(p.redeem){m*=1.25;bonus.push('REDEMPTION')}if(p.streak){m*=1.25;bonus.push('STREAK')}
+    if(p.redeem){m*=1.25;bonus.push('REDEMPTION')}const runNow=p.run+1;if(runNow>=5){m*=1.5;bonus.push('HOT STREAK ×1.5')}else if(runNow>=3){m*=1.25;bonus.push('STREAK ×1.25')}
     const pts=Math.round(base*m);p.score+=pts;p.redeem=false;G.pop={id:p.id,pts,bonus};
     p.right++;p.run++;q.solved=true;if(isMe(p))G.maxRun=Math.max(G.maxRun,p.run);
-    if(p.run>=3&&!p.streak){p.streak=true;if(meNarr(p))say(pick(NARR.streak),'cyan');else{say(`${p.n} has a STREAK. Shielded, but on a shorter clock.`,'cyan');bark(p,'streak')}}
+    if(p.run>=3&&!p.streak){p.streak=true;if(meNarr(p))say(shieldOK(G,p)?pick(NARR.streak):NARR_VSSTREAK,'cyan');else{say(`${p.n} has a STREAK: bonus points, shorter clock.`,'cyan');bark(p,'streak')}}
     else if(meNarr(p))say(pick(NARR.right),'good');else{say(`${p.n} got it.`,'');bark(p,'right')}
     G.res='ok';
   }else{
     if(i>=0)q.elim.push(i);q.passes++;
-    if(p.streak){p.streak=false;p.run=0;p.redeem=false;if(meNarr(p))say(pick(NARR.shield),'cyan');else{say(`${p.n}’s streak shatters. No life lost.`,'cyan');bark(p,'wrong')}G.res='shield'}
-    else{p.lives--;p.run=0;p.redeem=true;G.res='hurt';
+    if(p.streak&&shieldOK(G,p)){p.streak=false;p.run=0;p.redeem=false;if(meNarr(p))say(pick(NARR.shield),'cyan');else{say(`${p.n}’s streak shatters. No life lost.`,'cyan');bark(p,'wrong')}G.res='shield'}
+    else{const hadStreak=p.streak;p.lives--;p.run=0;p.streak=false;p.redeem=true;G.res='hurt';if(hadStreak&&!meNarr(p)&&p.lives>0)say(`${p.n}’s streak ends, and so does a life.`,'');
       if(p.lives<=0){p.alive=false;G.elim.push(p.id);if(meNarr(p))say(pick(NARR.elimYou),'hot');else{say(`${p.n} is out.`,'hot');if(p.cpu){const t=pick(p.cpu.elim);G.bark={id:p.id,text:t,until:performance.now()+2600}}}}
       else if(meNarr(p))say(i<0?pick(NARR.timeout):pick(NARR.wrong),'hot');else{say(`${p.n} ${i<0?'froze':'missed'}. The question passes.`,'');bark(p,i<0?'life':'wrong')}}
     if(q.opts.length-q.elim.length<=1)q.solved=true;
@@ -550,10 +553,10 @@ function gameV(g){
   const watching=g.client&&!g.players.some(isMe)&&g.phase!=='over';
   if(g.client&&!g.players.length)return `<div class="box"><h2>JOINING THE MATCH…</h2><p class="vt dim">Grabbing a seat in the gallery. The potato is already moving.</p><button class="back" data-act="leavelobby" id="back">◂ leave</button></div>`;
   const n=g.players.length,act=g.players[g.turn]||g.players[0],q=g.q;
-  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?'shield':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
+  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?(shieldOK(g,p)?'shield':'streak'):''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
   const [sx,sy]=seatPos(g.turn,n),px=50+(sx-50)*.55,py=50+(sy-50)*.55;
   let bk='';if(g.bark){const bi=g.players.findIndex(p=>p.id===g.bark.id);if(bi>=0){const [bx,by]=seatPos(bi,n),up=by<50;bk=`<div class="bark ${up?'dn':''}" id="bark" style="left:${Math.min(78,Math.max(22,bx))}%;top:${up?by+14:by-9}%">${esc(g.bark.text)}</div>`}}
-  let pop='';if(g.pop){const pi=g.players.findIndex(p=>p.id===g.pop.id);if(pi>=0){const [ox,oy]=seatPos(pi,n);pop=`<div class="ptpop" style="left:${ox}%;top:${oy-6}%">+${g.pop.pts}${g.pop.bonus&&g.pop.bonus.length?`<small>${g.pop.bonus.join(' + ')} ×1.25</small>`:''}</div>`}}
+  let pop='';if(g.pop){const pi=g.players.findIndex(p=>p.id===g.pop.id);if(pi>=0){const [ox,oy]=seatPos(pi,n);pop=`<div class="ptpop" style="left:${ox}%;top:${oy-6}%">+${g.pop.pts}${g.pop.bonus&&g.pop.bonus.length?`<small>${g.pop.bonus.map(b=>b==='REDEMPTION'?'REDEMPTION ×1.25':b).join(' + ')}</small>`:''}</div>`}}
   const banner=g.phase==='topic'&&g.topic?`<div class="banner"><div><small>ROUND ${g.round} · ${esc(g.topic.course).toUpperCase()}${g.topic.ch?' · CH. '+esc(g.topic.ch):''}</small><b>${esc(g.topic.name).toUpperCase()}</b><small>two full rotations</small></div></div>`:g.paused?`<div class="banner"><div><b>PAUSED</b><small>The potato waits. Impatiently.</small></div></div>`:'';
   const ring=`<div class="ring">${seats}${pop}<div class="spud" id="spud" style="left:${px}%;top:${py}%">${SPUD()}</div>${bk}${banner}</div>`;
   const where=g.mode==='story'?`${WBY[g.world].name} · FLOOR ${g.floor+1}`:`VS${g.code?' · '+esc(g.code):''}${g.net?' · ONLINE':' · BOTS'}`;
@@ -571,7 +574,7 @@ function gameV(g){
     box=`<div class="box qbox"><div class="who"><span>${who}</span><span class="dim">${esc(q.kind)}${q.passes?` · passed ×${q.passes}`:''} · worth ${Math.round(100*Math.pow(.75,q.elim.length))}</span></div><div class="trow"><div class="timer"><i id="tbar" style="width:${Math.max(0,tleft/g.timer*100)}%"></i></div><span class="tnum ${g.fastT?'fast':''}" id="tnum">${Math.max(0,Math.ceil(tleft/1000))}s</span></div>${g.phase==='ask'&&g.fastT?`<div class="dim" style="font-size:14px;margin:-6px 0 10px;color:var(--cyan)">Streak active: ${g.timer/1000}-second clock</div>`:''}${g.phase==='ask'&&q.hypo&&!g.fastT?`<div class="dim" style="font-size:14px;margin:-6px 0 10px;color:var(--gold)">Hypothetical: 20-second clock</div>`:''}<p class="q">${q.q}</p><div class="opts">${opts}</div>${exp}${rev&&g.wait?`<div class="row" style="margin-top:12px"><button class="btn gold" data-act="next" id="next">NEXT ▸</button></div>`:''}</div>`;
   }else box=`<div class="box qbox"><p class="vt dim" style="margin:0">The potato is choosing a topic. It is taking this very seriously.</p></div>`;
   let nr=g.narr||{t:'',c:''};
-  if(g.net&&g.phase==='reveal'&&isMe(act)){const me=act,P=(a)=>a[(g.turnId||0)%a.length];nr=g.res==='ok'?(me.streak&&me.run===3?{t:P(NARR.streak),c:'cyan'}:{t:P(NARR.right),c:'good'}):g.res==='shield'?{t:P(NARR.shield),c:'cyan'}:!me.alive?{t:P(NARR.elimYou),c:'hot'}:{t:g.pickI<0?P(NARR.timeout):P(NARR.wrong),c:'hot'}}
+  if(g.net&&g.phase==='reveal'&&isMe(act)){const me=act,P=(a)=>a[(g.turnId||0)%a.length];nr=g.res==='ok'?(me.streak&&me.run===3?{t:g.mode==='story'?P(NARR.streak):NARR_VSSTREAK,c:'cyan'}:{t:P(NARR.right),c:'good'}):g.res==='shield'?{t:P(NARR.shield),c:'cyan'}:!me.alive?{t:P(NARR.elimYou),c:'hot'}:{t:g.pickI<0?P(NARR.timeout):P(NARR.wrong),c:'hot'}}
   return top+ring+box+`<div class="narr ${nr.c}">${esc(nr.t)}</div>`;
 }
 function vsResultV(g){
@@ -794,7 +797,7 @@ function boardsV(){
   const scope=on?`<p class="good" style="font-size:14px;margin:0 0 8px">● GLOBAL · live, top 25 · updates as classmates play</p>${cmp}`:`<p class="dim" style="font-size:14px;margin:0 0 8px">○ LOCAL · this browser${onState!=='on'?' (online not connected)':''}</p>`;
   const body=on?(!d||d.loading?'<p class="vt dim">Fetching scores…</p>':d.err?'<p class="bad">Couldn’t load the online board.</p>':lbTable(d.rows,true)):lbTable(S.lb[k],false);
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>LEADERBOARDS</h2><div class="tabs">${tab('story','STORY LEADERBOARD')}${tab('vs','VS LEADERBOARD')}</div>${head}${scope}${body}
-  <details style="margin-top:16px"><summary class="gold" style="cursor:pointer">HOW SCORING WORKS</summary><table style="margin-top:8px"><tr><td>Correct answer</td><td>100</td></tr><tr><td>Each wrong pick before you (question was passed)</td><td>×0.75</td></tr><tr><td>Redemption: correct right after losing a life</td><td>×1.25</td></tr><tr><td>Streak active (3 in a row; lasts until a miss; your timer drops by 5 seconds)</td><td>×1.25</td></tr></table><p class="dim" style="font-size:14px">Bonuses multiply. Timeouts pass the question without lowering its value.</p></details></div>`;
+  <details style="margin-top:16px"><summary class="gold" style="cursor:pointer">HOW SCORING WORKS</summary><table style="margin-top:8px"><tr><td>Correct answer</td><td>100</td></tr><tr><td>Each wrong pick before you (question was passed)</td><td>×0.75</td></tr><tr><td>Redemption: correct right after losing a life</td><td>×1.25</td></tr><tr><td>Streak: your 3rd and 4th correct answers in a row (from the 3rd, your timer drops by 5 seconds. In Story Mode only, your own streak also shields you from losing a life on a miss)</td><td>×1.25</td></tr><tr><td>Hot streak: your 5th correct answer in a row and every one after it, until a miss</td><td>×1.5</td></tr></table><p class="dim" style="font-size:14px">Bonuses multiply. Timeouts pass the question without lowering its value.</p></details></div>`;
 }
 function recordsV(){
   const acc=S.answered?Math.round(S.right/S.answered*100):0;
