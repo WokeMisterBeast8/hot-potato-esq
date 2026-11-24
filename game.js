@@ -1,6 +1,13 @@
 {
 /* ================= sprites (12x12, X = color, o = black detail) ================= */
 const SPR={
+thumb:["....XX......", "...XXX......", "...XXX......", "...XXX......", "..XXXX......", ".XXXXXXXXXX.", "XXXXXXXXXXXX", "XoXXXoooooXX", "XoXXXXXXXXXX", "XoXXXoooooX.", "XoXXXXXXXXX.", ".XXXXXXXXX.."],
+uke:[".........XXX", "........XXoX", ".......XXXX.", "......XoX...", ".....XoX....", "..XXXoX.....", ".XXXXXX.....", "XXXooXXX....", "XXooooXX....", "XXXooXXX....", ".XXXXXX.....", "..XXXX......"],
+scroll:[".XXXXXXXXX..", "X.XXXXXXXXX.", ".XXXXXXXXX.X", ".XoooooooX..", ".XXXXXXXXX..", ".XoooooXXX..", ".XXXXXXXXX..", ".XooooooXX..", ".XXXXXXXXX..", ".XooooXXXX..", "XXXXXXXXXX..", ".XXXXXXXXXX."],
+fish:["......X.....", "......X.....", "......X.....", "......X.....", "....X.X.....", "....XXX.....", "............", "..XXXXX...X.", ".XXXXXXX.XX.", "XXoXXXXXXXX.", ".XXXXXXX.XX.", "..XXXXX...X."],
+bulb:["....XXXX....", "..XXXXXXXX..", ".XXXXXXXXXX.", ".XXXoXXoXXX.", ".XXXXooXXXX.", "..XXXooXXX..", "...XXooXX...", "....XXXX....", "............", "....XXXX....", "............", ".....XX....."],
+pepper:["............", "......X.....", ".....XX.....", "...XXXXXX...", "..XXXXXXXX..", ".XXoXXXXXXX.", ".XXXXXXXoXX.", ".XXXXXXXXXX.", ".XXXXoXXXXX.", "..XXXXXXXX..", "...XXXXXX...", "............"],
+grade:["XXXXXXXXXX..", "XXXXXXXXXXX.", "XXXooooXXXXX", "XXoXXXXXXXXX", "XXoXXXXXXXXX", "XXXoooXXXXXX", "XXXXXXoXXXXX", "XXXXXXoXXXXX", "XXooooXXXXXX", "XXXXXXXXXXXX", "XXXXXXXXXXoX", "XXXXXXXXXooX"],
 potato:['....XXXX....','..XXXXXXXX..','.XXXXXXXXXX.','XXXoXXXXoXXX','XXXoXXXXoXXX','XXXXXXXXXXXX','XXXXoXXoXXXX','XXXXXooXXXXX','.XXXXXXXXXXX','.XXXXXXXXXX.','..XXXXXXXX..','....XXXX....'],
 cat:['X..........X','XX........XX','XXX.XXXX.XXX','XXXXXXXXXXXX','XXoXXXXXXoXX','XXoXXXXXXoXX','XXXXXXXXXXXX','XXXXXooXXXXX','.XXoXXXXoXX.','..XXooooXX..','...XXXXXX...','............'],
 frog:['.XXX....XXX.','XXoXX..XXoXX','XXoXXXXXXoXX','XXXXXXXXXXXX','XXXXXXXXXXXX','XoXXXXXXXXoX','XXooooooooXX','XXXXXXXXXXXX','.XXXXXXXXXX.','XX.XX..XX.XX','X..X....X..X','............'],
@@ -29,7 +36,10 @@ const PROF={
 peterson:{p:{H:'#c8442b',S:'#f0c4a2',G:'#e6e6e6',L:'#9fd3ff',J:'#3a4a6a',W:'#ffffff',o:'#000000'},r:['......HHHH......','.....HHHHHH.....','......HHHH......','....HHHHHHHH....','...HHHHHHHHHH...','...HHSSSSSSHH...','...HSSSSSSSSH...','...GGGGSSGGGG...','...GLLGSSGLLG...','...GGGGSSGGGG...','...HSSSSSSSSH...','....SSSooSSS....','......SSSS......','....JJJWWJJJ....','..JJJJJWWJJJJJ..','.JJJJJJWWJJJJJJ.']},
 pimentel:{p:{R:'#d4d4d4',S:'#efc8a8',K:'#d6a57f',o:'#000000',B:'#d23a4a',W:'#ffffff',J:'#7a5a3e'},r:['................','.....RRRRRR.....','....RRSSSSRR....','...RSSSSSSSSR...','...RSSSSSSSSR...','...SSoSSSSoSS...','...SSSSSSSSSS...','..SSSSSSSSSSSS..','...SSSSKKSSSS...','...SSSSSSSSSS...','....SSooooSS....','.....SSSSSS.....','......SSSS......','....JWBBBBWJ....','..JJJWBBBBWJJJ..','.JJJJJWWWWJJJJJ.']},
 tirrell:{p:{D:'#2b2018',S:'#e0b08a',G:'#e6e6e6',L:'#9fd3ff',o:'#000000',N:'#2b3048',W:'#ffffff',T:'#3f63c9'},r:['................','.....DDDDDD.....','....DDDDDDDD....','...DDDDDDDDDD...','...DSSSSSSSSD...','...SSSSSSSSSS...','...GGGGSSGGGG...','...GLLGSSGLLG...','...GGGGSSGGGG...','...SSSSSSSSSS...','....SSSooSSS....','.....SSSSSS.....','......SSSS......','....NNWTTWNN....','..NNNNWTTWNNNN..','.NNNNNWTTWNNNNN.']}};
-const ICONS=['potato','cat','frog','ghost','star','mushroom','crab','cactus','gavel','book','moon','bird'];
+const ICONS=['potato','cat','frog','ghost','star','mushroom','crab','cactus','gavel','book','moon','bird',
+  // unlocked by achievements:
+  'scroll','fish','peterson','thumb','uke','pimentel','bulb','pepper','tirrell','grade'];
+const BASE_ICONS=12;
 const COLORS=['#ffffff','#ffd84a','#ff6a3d','#ff4d6d','#c58bff','#6ad6ff','#5ee08f','#ff9be1'];
 const spr=(name,col,cls)=>{if(PROF[name]){const P=PROF[name];let r='';P.r.forEach((row,y)=>[...row].forEach((c,x)=>{const f=P.p[c];if(f)r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${f}"/>`}));return `<svg class="pix prof16 ${cls||''}" viewBox="0 0 16 16" aria-hidden="true">${r}</svg>`}const g=SPR[name]||SPR.potato;let r='';g.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='X')r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col}"/>`;else if(c==='o')r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="#000"/>`}));return `<svg class="pix ${cls||''}" viewBox="0 0 12 12" aria-hidden="true">${r}</svg>`};
 const SPUD=()=>spr('potato','#d9a05b');
@@ -353,9 +363,94 @@ document.addEventListener('submit',async e=>{
 
 async function goOnline(){
   if(!window.HP_FIREBASE)return;
-  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);{const old=ME;ME=ON.uid;if(G&&old!==ME)G.players.forEach(p=>{if(p.id===old)p.id=ME})}onState='on';await accountBoot();loadCrowns();gStart();}
+  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);{const old=ME;ME=ON.uid;if(G&&old!==ME)G.players.forEach(p=>{if(p.id===old)p.id=ME})}onState='on';await accountBoot();await achSync();loadCrowns();gStart();}
   catch(e){onState='error';onErr=String(e&&e.message||e);console.warn('Online unavailable:',e)}
   render();
+}
+
+/* ================= achievements ================= */
+const ACH=[
+  {id:'cp-0',w:'cp',f:0,name:'Well-Pleaded',icon:'scroll',blurb:'A short and plain statement of your victory.'},
+  {id:'cp-1',w:'cp',f:1,name:'Fishing Expedition',icon:'fish',blurb:'Relevant, proportional, and a little bit of a catch.'},
+  {id:'cp-2',w:'cp',f:2,name:'Peterson’s Praise',icon:'peterson',blurb:'Professor Peterson nods. That’s high praise.'},
+  {id:'torts-0',w:'torts',f:0,name:'Learned Hand',icon:'thumb',blurb:'B < PL. Thumbs up.'},
+  {id:'torts-1',w:'torts',f:1,name:'Proximate Chord',icon:'uke',blurb:'A foreseeable kind of music.'},
+  {id:'torts-2',w:'torts',f:2,name:'Pimentel’s Ukulele Cover',icon:'pimentel',blurb:'He brought the ukulele. He played the whole thing.'},
+  {id:'k-0',w:'k',f:0,name:'Meeting of the Minds',icon:'bulb',blurb:'Offer, acceptance, and one shared idea.'},
+  {id:'k-1',w:'k',f:1,name:'A Peppercorn Will Do',icon:'pepper',blurb:'Consideration doesn’t have to be adequate. Just bargained for.'},
+  {id:'k-2',w:'k',f:2,name:'Tirrell’s Trust',icon:'tirrell',blurb:'A firm offer of respect from Professor Tirrell.'},
+  {id:'all',name:'Satisfactory Grade',icon:'grade',blurb:'Every floor of every world, cleared. The registrar is satisfied.'},
+];
+const ACHBY=Object.fromEntries(ACH.map(a=>[a.id,a]));
+const ICONACH=Object.fromEntries(ACH.map(a=>[ICONS.indexOf(a.icon),a]));
+const hasAch=id=>!!(S.ach&&S.ach[id]);
+const iconUnlocked=i=>i<BASE_ICONS||(ICONACH[i]&&hasAch(ICONACH[i].id));
+const achDesc=a=>a.id==='all'?'Clear all nine story floors.':`Clear ${WBY[a.w].name} · Floor ${a.f+1}: ${WBY[a.w].floors[a.f].name}.`;
+const achIconSvg=(a,cls,locked)=>locked?spr(a.icon in PROF?'ghost':a.icon,'#3a3a3a',cls):spr(a.icon,COLORS[prof().color],cls);
+let ACHQ=[];
+// Grant every achievement the save qualifies for; returns the newly earned ones.
+function checkAch(){
+  S.ach=S.ach||{};const out=[];
+  ACH.forEach(a=>{if(a.id==='all'||hasAch(a.id))return;if((S.wins[a.w+'-'+a.f]||0)>0){S.ach[a.id]={t:Date.now()};out.push(a.id)}});
+  if(!hasAch('all')&&ACH.filter(a=>a.id!=='all').every(a=>hasAch(a.id))){S.ach.all={t:Date.now()};out.push('all')}
+  if(out.length){save();achPush();ACHQ.push(...out)}
+  return out;
+}
+function achPush(){if(ON&&ON.setAch)ON.setAch(S.ach||{}).catch(()=>{})}
+async function achSync(){
+  if(!ON||!ON.getAch)return;
+  try{const remote=await ON.getAch()||{};S.ach=S.ach||{};let changedLocal=false,changedRemote=false;
+    for(const [k,v] of Object.entries(remote))if(ACHBY[k]&&!S.ach[k]){S.ach[k]=v;changedLocal=true}
+    for(const k of Object.keys(S.ach))if(!remote[k])changedRemote=true;
+    if(changedLocal){save();if(V==='profile')render()}
+    if(changedRemote)achPush();
+  }catch(e){}
+}
+// Top score + leaderboard placement for an achievement's stage.
+const ACHSTAT={};
+function achStageKey(a){return a.id==='all'?null:a.w+'-'+(a.f+1)}
+function achStatText(a){
+  if(a.id==='all'){const tot=ACH.filter(x=>x.id!=='all').reduce((t,x)=>t+(S.best[x.w+'-'+x.f]||0),0);const st=ACHSTAT.all;
+    return `Combined best across all 9 floors: <b>${tot.toLocaleString()}</b>${st&&st.text?` · ${st.text}`:''}`}
+  const best=S.best[a.w+'-'+a.f]||0,st=ACHSTAT[a.id];
+  return `Top score: <b>${best.toLocaleString()}</b> · ${st?st.text:(ON?'checking leaderboard…':'leaderboard: this browser only')}`;
+}
+async function loadAchStat(a,tries){
+  if(!ON&&onState==='connecting'&&(tries||0)<20){setTimeout(()=>loadAchStat(a,(tries||0)+1),500);return}
+  const bk=achStageKey(a);
+  if(a.id==='all'){if(!ON)return;let firsts=0;const ids=ACH.filter(x=>x.id!=='all');
+    await Promise.all(ids.map(async x=>{try{const r=await ON.top(x.w+'-'+(x.f+1),1);if(r[0]&&r[0].uid===ME)firsts++}catch(e){}}));
+    ACHSTAT.all={text:`#1 on ${firsts} of 9 global floor boards`};drawAchStat(a);return}
+  if(!ON){const L=(S.lb&&S.lb[bk])||[],best=S.best[a.w+'-'+a.f]||0,i=L.findIndex(e=>e.score===best);ACHSTAT[a.id]={text:i>=0?`#${i+1} on this browser’s board`:'not on this browser’s board'};drawAchStat(a);return}
+  try{const rows=await ON.top(bk,100);const i=rows.findIndex(r=>r.uid===ME);
+    ACHSTAT[a.id]={text:i>=0?`global leaderboard <b>#${i+1}</b> of ${rows.length}${rows.length>=100?'+':''}`:rows.length>=100?'outside the global top 100':'no global score yet'}}
+  catch(e){ACHSTAT[a.id]={text:'leaderboard unavailable'}}
+  drawAchStat(a);
+}
+function drawAchStat(a){document.querySelectorAll(`[data-achstat="${a.id}"]`).forEach(el=>el.innerHTML=achStatText(a))}
+// ---- reward screen ----
+function achTryShow(){
+  if(!ACHQ.length||document.getElementById('achpop'))return;
+  if(V==='dlg'||(V==='game'&&G&&G.phase!=='over'))return;
+  const a=ACHBY[ACHQ[0]];if(!a){ACHQ.shift();return achTryShow()}
+  const idx=ICONS.indexOf(a.icon),eq=prof().icon===idx;
+  const el=document.createElement('div');el.id='achpop';el.className='achpop';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label','Achievement unlocked');
+  el.innerHTML=`<div class="achbox"><div class="achhd">ACHIEVEMENT UNLOCKED${ACHQ.length>1?` <span class="dim">· ${ACHQ.length-1} more</span>`:''}</div>
+    <div class="achicon">${achIconSvg(a,'big')}</div><h2 class="gold">${esc(a.name)}</h2><p class="vt" style="margin:0 0 4px">${esc(a.blurb)}</p>
+    <p class="dim" style="font-size:14px;margin:0 0 10px">${esc(achDesc(a))}</p>
+    <p class="achstat" data-achstat="${a.id}">${achStatText(a)}</p>
+    <p style="margin:12px 0 4px">New icon unlocked${a.icon in PROF?': your professor, as your avatar.':'.'} Equip it now, or anytime from your Profile.</p>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn gold" data-act="achequip" data-v="${a.id}" id="achequip" ${eq?'disabled':''}>${eq?'EQUIPPED':'EQUIP NOW'}</button><button class="btn" data-act="achclose" id="achclose">${ACHQ.length>1?'NEXT':'NICE'}</button></div></div>`;
+  document.body.appendChild(el);loadAchStat(a);setTimeout(()=>{const b=document.getElementById('achequip');(b&&!b.disabled?b:document.getElementById('achclose')).focus()},50);
+}
+function achClose(){const el=document.getElementById('achpop');if(el)el.remove();ACHQ.shift();achTryShow()}
+// ---- profile section ----
+function achV(){
+  const n=ACH.filter(a=>hasAch(a.id)).length;
+  return `<div class="box"><h2>ACHIEVEMENTS <span class="dim" style="font-size:18px">${n}/${ACH.length}</span></h2><p class="vt dim" style="margin-top:-4px">Clear story floors to earn them. Each one unlocks a new icon.${onState==='on'?' Saved to your account.':''}</p>
+  <div class="achgrid">${ACH.map(a=>{const got=hasAch(a.id),idx=ICONS.indexOf(a.icon),eq=prof().icon===idx;
+    return `<div class="achcard ${got?'got':'locked'}"><div class="ai">${achIconSvg(a,'',!got)}${got?'':'<span class="lock" aria-hidden="true">🔒</span>'}</div>
+    <div class="at"><b class="${got?'gold':''}">${esc(a.name)}</b><small>${esc(achDesc(a))}</small>${got?`<small class="achstat" data-achstat="${a.id}">${achStatText(a)}</small><div><button class="btn sm ${eq?'':'gold'}" data-act="achequip" data-v="${a.id}" id="eq-${a.id}" ${eq?'disabled':''}>${eq?'EQUIPPED':'EQUIP'}</button></div>`:''}</div></div>`}).join('')}</div></div>`;
 }
 
 /* ================= crowns ================= */
@@ -446,10 +541,11 @@ function render(){
   if(V!=='boards'&&boardOff)stopBoardWatch();
   if(V==='vs'&&ON&&!pubOff){pubOff=ON.watchPub(l=>{PUBS=l;drawPubs()})}else if(V!=='vs'&&pubOff){pubOff();pubOff=null;PUBS=null}
   musSync();
+  achTryShow();
 }
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
 const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
-const BUILD='build 15 · Nov 23';
+const BUILD='build 16 · Nov 23';
 function titleV(){
   return `<div class="home"><div class="homeL"><div class="title"><div class="potato">${SPUD()}</div><div class="tblock"><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><div class="credit">made by <b>COOPER</b> from Civ Pro</div></div><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
@@ -461,9 +557,9 @@ function profileV(){
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>WHO ARE YOU?</h2>
   <div class="prof"><div class="pv">${withCrown(ME,myIcon())}<div class="gold" style="font-size:22px">${esc(p.name||'???')}</div><p class="vt dim" style="margin:0">${p.name?'You look ready. You are not. That’s fine.':'The potato would like to know your name.'}</p>${crownBlock()}</div>
   <div>${NAMEBUMP?`<p class="bad" style="margin:0 0 8px">${esc(NAMEBUMP)} was registered by another player, so pick a new name (or log in below if it’s you).</p>`:''}<div class="lbl">USERNAME (up to 10 characters)</div><input type="text" id="nm" maxlength="10" value="${esc(p.name)}" autocomplete="off" spellcheck="false" ${S.reg?'disabled title="Registered names are locked. Log out to use a different name."':''}><div id="nmstat" class="nmstat" aria-live="polite">${S.reg?'<span class="good">🔒 registered to you</span>':nameStatHTML()}</div>
-  <div class="lbl">ICON</div><div class="icons">${ICONS.map((n,i)=>`<button class="ic" data-act="icon" data-v="${i}" id="ic-${i}" aria-pressed="${p.icon===i}" aria-label="${n}">${spr(n,COLORS[p.color])}</button>`).join('')}</div>
+  <div class="lbl">ICON</div><div class="icons">${ICONS.map((n,i)=>{const ok=iconUnlocked(i),a=ICONACH[i];return ok?`<button class="ic" data-act="icon" data-v="${i}" id="ic-${i}" aria-pressed="${p.icon===i}" aria-label="${a?esc(a.name):n}" title="${a?esc(a.name):''}">${spr(n,COLORS[p.color])}</button>`:`<button class="ic lockedic" disabled id="ic-${i}" aria-label="Locked: earn ${esc(a.name)}" title="Earn ‘${esc(a.name)}’ to unlock">${achIconSvg(a,'',true)}<span class="lock" aria-hidden="true">🔒</span></button>`}).join('')}</div>
   <div class="lbl">COLOR</div><div class="sws">${COLORS.map((c,i)=>`<button class="sw" style="background:${c}" data-act="color" data-v="${i}" id="sw-${i}" aria-pressed="${p.color===i}" aria-label="color ${i+1}"></button>`).join('')}</div>
-  <div class="row" style="margin-top:16px"><button class="btn gold" data-act="saveprof" id="save" ${NAMESTAT.st==='taken'?'disabled':''}>SAVE</button></div>${acctV()}</div></div></div>`;
+  <div class="row" style="margin-top:16px"><button class="btn gold" data-act="saveprof" id="save" ${NAMESTAT.st==='taken'?'disabled':''}>SAVE</button></div>${acctV()}</div></div></div>${achV()}`;
 }
 function crownBlock(){const n=crownN(ME),tot=CROWNS[ME]||0;
   return `<div class="crownbox">${n?`<p class="gold" style="margin:0 0 6px">${CROWNNAME[n]} · #1 on ${tot} global leaderboard${tot>1?'s':''}</p>`:`<p class="dim" style="margin:0 0 6px;font-size:14px">${onState==='on'?'Hold #1 on any global leaderboard to wear a crown.':'Crowns are earned on the global leaderboards when online play is on.'}</p>`}
@@ -569,6 +665,7 @@ function endGame(){
   if(G.mode==='story'){
     const w=G.world,f=G.floor,key=w+'-'+f,won=me.alive,fl=WBY[w].floors[f];
     if(won){S.wins[key]=(S.wins[key]||0)+1;S.prog[w]=Math.max(S.prog[w],Math.min(3,f+2))}
+    S.best[key]=Math.max(S.best[key]||0,me.score);if(won)checkAch();
     S.best[key]=Math.max(S.best[key]||0,me.score);
     const e=entry(me,place,{players:G.players.length}),rank=lbLocal(w+'-'+(f+1),e);
     if(ON){const bk=w+'-'+(f+1),sc=e.score;ON.submit(bk,e).then(()=>{loadCrowns();return ON.top(bk,25)}).then(rows=>{if(!rows||!G||!G.result)return;const above=rows.filter(x=>x.score>sc).length;G.result.grank=above<rows.length||rows.length<25?above+1:-1;G.result.gtot=rows.length;if(V==='game'&&G.phase==='over')render()}).catch(()=>{})}
@@ -611,7 +708,7 @@ function gameV(g){
   const watching=g.client&&!g.players.some(isMe)&&g.phase!=='over';
   if(g.client&&!g.players.length)return `<div class="box"><h2>JOINING THE MATCH…</h2><p class="vt dim">Grabbing a seat in the gallery. The potato is already moving.</p><button class="back" data-act="leavelobby" id="back">◂ leave</button></div>`;
   const n=g.players.length,act=g.players[g.turn]||g.players[0],q=g.q;
-  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?(shieldOK(g,p)?'shield':'streak'):''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
+  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?(shieldOK(g,p)?'shield':'streak'):''} ${p.alive&&p.run>=5?'onfire':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${p.alive&&p.run>=5?'<span class="flames" aria-hidden="true"><i></i><i></i><i></i></span>':''}${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
   const [sx,sy]=seatPos(g.turn,n),px=50+(sx-50)*.55,py=50+(sy-50)*.55;
   let bk='';if(g.bark){const bi=g.players.findIndex(p=>p.id===g.bark.id);if(bi>=0){const [bx,by]=seatPos(bi,n),up=by<50;bk=`<div class="bark ${up?'dn':''}" id="bark" style="left:${Math.min(78,Math.max(22,bx))}%;top:${up?by+14:by-9}%">${esc(g.bark.text)}</div>`}}
   let pop='';if(g.pop){const pi=g.players.findIndex(p=>p.id===g.pop.id);if(pi>=0){const [ox,oy]=seatPos(pi,n);pop=`<div class="ptpop" style="left:${ox}%;top:${oy-6}%">+${g.pop.pts}${g.pop.bonus&&g.pop.bonus.length?`<small>${g.pop.bonus.map(b=>b==='REDEMPTION'?'REDEMPTION ×1.25':b).join(' + ')}</small>`:''}</div>`}}
@@ -876,7 +973,9 @@ function settingsV(){
 function act(a,v,el){
   if(a==='menu'){if((v==='story'||v==='vs')&&!prof().name){go('profile');return}if(v==='story'){G=null;stopLoop();go('worlds')}else{if(v==='boards')loadBoard();go(v)}}
   else if(a==='home'){if(LOBBY&&V==='boards'){if(LOBBY.host){act('tolobby');return}V='lobby';render();return}if(LOBBY){leaveLobby();return}stopLoop();G=null;flavI=(flavI+1)%FLAV.length;go('title')}
-  else if(a==='icon'){S.profile.icon=+v;keepName();render()}
+  else if(a==='icon'){if(!iconUnlocked(+v))return;S.profile.icon=+v;keepName();render()}
+  else if(a==='achequip'){const A=ACHBY[v];if(!A||!hasAch(A.id))return;keepName();S.profile.icon=ICONS.indexOf(A.icon);save();const pop=document.getElementById('achpop');if(pop){const b=pop.querySelector('#achequip');if(b){b.textContent='EQUIPPED';b.disabled=true}}if(V==='profile'||V==='title')render()}
+  else if(a==='achclose'){achClose()}
   else if(a==='color'){S.profile.color=+v;keepName();render()}
   else if(a==='logout'){if(!ON)return;ACCTBUSY=true;ON.logout().then(()=>{S.reg=null;S.profile.name='';save();location.reload()}).catch(()=>{ACCTBUSY=false})}
   else if(a==='claimfix'){if(!ON||!ON.claimName)return;ACCTMSG='Finishing…';render();ON.claimName().then(()=>{if(ON.regName===ADMINNAME)ADMINUID=ME;ACCTMSG='Done. You’re the admin.';render()}).catch(e=>{ACCTMSG=e.message||String(e);render()})}
@@ -923,6 +1022,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(
 document.addEventListener('submit',e=>{if(e.target.id!=='joinf')return;e.preventDefault();joinLobby(document.getElementById('joincode').value)});
 document.addEventListener('input',e=>{if(e.target.id==='nm'){if(S.reg){e.target.value=S.reg;return}S.profile.name=e.target.value.toUpperCase().slice(0,10);NAMEBUMP='';checkName(S.profile.name);const rb=document.getElementById('regb');if(rb)rb.textContent='REGISTER '+(S.profile.name||'NAME')}});
 document.addEventListener('keydown',e=>{
+  if(document.getElementById('achpop')){if(e.key==='Escape'){achClose();e.preventDefault()}return}
   if(e.target.id==='chatin'||e.target.id==='joincode'||e.target.id==='gchatin')return;
   if(['pw1','pw2','lgn','lgp'].includes(e.target.id))return;
   if(e.target.tagName==='INPUT'){if(e.key==='Enter'){if(NAMESTAT.st==='taken')return;keepName();save();go('title')}return}
@@ -939,6 +1039,6 @@ window.addEventListener('beforeunload',()=>{if(LOBBY&&LOBBY.net&&ON)ON.leaveRoom
 /* ================= boot ================= */
 (async function boot(){
   try{D=await (await fetch('data.json')).json();TOP=D.topics}catch(e){app.innerHTML='<div class="box vt">The potato could not find its questions. Reload to try again.</div>';return}
-  musMount();render();goOnline();
+  musMount();checkAch();render();goOnline();
 })();
 }
