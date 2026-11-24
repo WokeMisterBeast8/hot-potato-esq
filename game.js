@@ -25,9 +25,13 @@ egg:['....XXXX....','...XXXXXX...','..XXXXXXXX..','..XXXXXXXX..','.XXXoXXoXXX.',
 pepper:['............','............','............','....XXXX....','...XXXXXX...','..XXoXXoXX..','..XXXXXXXX..','..XXXooXXX..','...XXXXXX...','....XXXX....','............','............'],
 person:['....XXXX....','...XXXXXX...','...XXXXXX...','....XXXX....','..XXXXXXXX..','.XXXXXXXXXX.','.XX.XXXX.XX.','.XX.XXXX.XX.','....XXXX....','...XX..XX...','...XX..XX...','..XXX..XXX..'],
 mirror:['..XXXXXXXX..','.XXooooooXX.','.XoXooooooX.','.XooXoooooX.','.XooooooooX.','.XooooooooX.','.XooooooooX.','.XooooooooX.','.XXooooooXX.','..XXXXXXXX..','.....XX.....','...XXXXXX...']};
+const PROF={
+peterson:{p:{H:'#c8442b',S:'#f0c4a2',G:'#e6e6e6',L:'#9fd3ff',J:'#3a4a6a',W:'#ffffff',o:'#000000'},r:['......HHHH......','.....HHHHHH.....','......HHHH......','....HHHHHHHH....','...HHHHHHHHHH...','...HHSSSSSSHH...','...HSSSSSSSSH...','...GGGGSSGGGG...','...GLLGSSGLLG...','...GGGGSSGGGG...','...HSSSSSSSSH...','....SSSooSSS....','......SSSS......','....JJJWWJJJ....','..JJJJJWWJJJJJ..','.JJJJJJWWJJJJJJ.']},
+pimentel:{p:{R:'#d4d4d4',S:'#efc8a8',K:'#d6a57f',o:'#000000',B:'#d23a4a',W:'#ffffff',J:'#7a5a3e'},r:['................','.....RRRRRR.....','....RRSSSSRR....','...RSSSSSSSSR...','...RSSSSSSSSR...','...SSoSSSSoSS...','...SSSSSSSSSS...','..SSSSSSSSSSSS..','...SSSSKKSSSS...','...SSSSSSSSSS...','....SSooooSS....','.....SSSSSS.....','......SSSS......','....JWBBBBWJ....','..JJJWBBBBWJJJ..','.JJJJJWWWWJJJJJ.']},
+tirrell:{p:{D:'#2b2018',S:'#e0b08a',G:'#e6e6e6',L:'#9fd3ff',o:'#000000',N:'#2b3048',W:'#ffffff',T:'#3f63c9'},r:['................','.....DDDDDD.....','....DDDDDDDD....','...DDDDDDDDDD...','...DSSSSSSSSD...','...SSSSSSSSSS...','...GGGGSSGGGG...','...GLLGSSGLLG...','...GGGGSSGGGG...','...SSSSSSSSSS...','....SSSooSSS....','.....SSSSSS.....','......SSSS......','....NNWTTWNN....','..NNNNWTTWNNNN..','.NNNNNWTTWNNNNN.']}};
 const ICONS=['potato','cat','frog','ghost','star','mushroom','crab','cactus','gavel','book','moon','bird'];
 const COLORS=['#ffffff','#ffd84a','#ff6a3d','#ff4d6d','#c58bff','#6ad6ff','#5ee08f','#ff9be1'];
-const spr=(name,col,cls)=>{const g=SPR[name]||SPR.potato;let r='';g.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='X')r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col}"/>`;else if(c==='o')r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="#000"/>`}));return `<svg class="pix ${cls||''}" viewBox="0 0 12 12" aria-hidden="true">${r}</svg>`};
+const spr=(name,col,cls)=>{if(PROF[name]){const P=PROF[name];let r='';P.r.forEach((row,y)=>[...row].forEach((c,x)=>{const f=P.p[c];if(f)r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${f}"/>`}));return `<svg class="pix prof16 ${cls||''}" viewBox="0 0 16 16" aria-hidden="true">${r}</svg>`}const g=SPR[name]||SPR.potato;let r='';g.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='X')r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col}"/>`;else if(c==='o')r+=`<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="#000"/>`}));return `<svg class="pix ${cls||''}" viewBox="0 0 12 12" aria-hidden="true">${r}</svg>`};
 const SPUD=()=>spr('potato','#d9a05b');
 
 /* ================= cast ================= */
@@ -46,48 +50,53 @@ eggshell:{n:'EGGSHELL',s:'egg',c:'#f3ead7',acc:.52,spd:1,right:['Gently correct.
 pepper:{n:'PEPPERCORN',s:'pepper',c:'#a0805a',acc:.5,spd:1,right:['Sufficient. Not adequate. Sufficient.','A bargain at any price.','Consideration: given.'],wrong:['Nominal performance.','That was a sham. Like me, sometimes.','Illusory.'],life:['I’m being ground.','Pepper mill. Pepper mill.'],streak:['Three bargains in a row!'],elim:['I was never really consideration...']},
 reasonable:{n:'THE REASONABLE PERSON',s:'person',c:'#e8e8e8',acc:.9,spd:1.2,right:['A REASONABLE ANSWER.','AS ANY PRUDENT PERSON WOULD.','I FORESAW THIS.'],wrong:['AN UNFORESEEABLE ERROR.','EVEN I HAVE BAD DAYS. (I DO NOT.)','THIS WAS NOT REASONABLE.'],life:['MY STANDARD... SLIPS...','I AM... MERELY ORDINARY...'],streak:['I AM BEHAVING... OPTIMALLY.'],elim:['I WAS ONLY... A LEGAL FICTION...']},
 mirror:{n:'THE MIRROR IMAGE',s:'mirror',c:'#bfe9ff',acc:.9,spd:1.2,right:['ACCEPTED. EXACTLY AS OFFERED.','I MIRROR THE CORRECT ANSWER.','NO VARIATION.'],wrong:['A COUNTEROFFER? FROM ME?','I ADDED A TERM. I AM ASHAMED.','THE KNOCKOUT RULE APPLIES TO ME.'],life:['CRACKS IN MY... TERMS...','BATTLE OF THE FORMS... LOST...'],streak:['PERFECT TENDER.'],elim:['I... AM ONLY A REFLECTION...']}};
+Object.assign(CPU,{
+peterson:{n:'PROF. PETERSON',s:'peterson',c:'#c8442b',acc:.86,spd:1.1,prof:true,right:['Correct. Note the rule and the policy behind it.','Exactly. Subject matter jurisdiction first, always.','Good. That one tends to show up on exams.'],wrong:['Hm. Let me re-read the rule.','A reminder that even professors check the statute.','I’ll call that a teaching moment.'],life:['Fair question. Well drafted.','The Rules giveth, the Rules taketh away.'],streak:['Three for three. Don’t tell the curve.'],elim:['Well played, everyone. Office hours are on the syllabus.']},
+pimentel:{n:'PROF. PIMENTEL',s:'pimentel',c:'#d23a4a',acc:.86,spd:.95,prof:true,right:['Precisely. Duty, breach, causation, damages.','That’s the reasonable answer.','Correct. I’ve taught that one for many years.'],wrong:['Even a careful person slips now and then.','Not my most foreseeable mistake.','Let me straighten my bow tie and try again.'],life:['A minor injury. I’ll recover.','Some comparative fault on my part.'],streak:['Three in a row. Not bad for an old hand.'],elim:['Splendid work. Class dismissed.']},
+tirrell:{n:'PROF. TIRRELL',s:'tirrell',c:'#3f63c9',acc:.86,spd:1.05,prof:true,right:['Correct. Read the terms carefully.','Exactly as bargained for.','That’s the black letter rule.'],wrong:['I’ll review my notes on that one.','A mistake on my part. Not a material one, I hope.','Let’s treat that as a counteroffer.'],life:['Noted. I’ll mitigate.','A minor breach.'],streak:['Three for three. Performance complete.'],elim:['Well argued, all of you. See you in class.']}});
+const PROFOF={cp:'peterson',torts:'pimentel',k:'tirrell'};
 const BOTPOOL=['highlighta','moss','gunner','ghost','coldbrew','footnote','knight','server','eggshell','pepper','rap'];
 
 /* ================= worlds ================= */
 const WORLDS=[
 {id:'cp',name:'THE PROCEDURAL ABYSS',course:'Civil Procedure',sub:'Built from your Civ Pro coursebook',exp:false,color:'#6ad6ff',floors:[
  {name:'THE CLERK’S WINDOW',cpus:['server','highlighta'],boost:0,
-  intro:[['','You take a number. The number is 12(b)(6). It is never called.'],['server','You’ve been served. I mean: hello. I serve. It’s what I do.'],['highlighta','welcome! i highlighted every federal rule. all of them. they’re all yellow now.'],['potato','hi. i’m the potato. i’m very hot. answer a question while you hold me, then pass me on.'],['potato','miss and it hurts. five misses and you’re out. three right in a row and you get a streak. it protects you, but your clock gets shorter.']],
+  intro:[['peterson','Welcome to Civil Procedure. Before you file anything, ask three questions: subject matter jurisdiction, personal jurisdiction, venue. Then hold the potato.'],['','You take a number. The number is 12(b)(6). It is never called.'],['server','You’ve been served. I mean: hello. I serve. It’s what I do.'],['highlighta','welcome! i highlighted every federal rule. all of them. they’re all yellow now.'],['potato','hi. i’m the potato. i’m very hot. answer a question while you hold me, then pass me on.'],['potato','miss and it hurts. five misses and you’re out. three right in a row and you get a streak. it protects you, but your clock gets shorter.']],
   win:[['server','Proper service. Proper victory. I’m moved.'],['','A door marked DISCOVERY creaks open. It wants everything you have.']],
   lose:[['highlighta','it’s okay. you can amend once as a matter of course.'],['potato','try again. i’m still warm.']]},
  {name:'THE DISCOVERY DUNGEON',cpus:['gunner','ghost','footnote','server'],boost:.02,
-  intro:[['','The walls are banker’s boxes. Every one is labeled RESPONSIVE.'],['gunner','I’ve already served interrogatories on all of you. Twenty-five each. Including subparts.'],['ghost','i’m someone’s outline from a past semester. my personal jurisdiction section is... vintage.'],['footnote','(Hello. I’m relevant and proportional.)'],['potato','more players means more passing. i’m dizzy already.']],
+  intro:[['peterson','Discovery is where most cases are won and lost. Relevant, proportional, nonprivileged. Remember those words down here.'],['','The walls are banker’s boxes. Every one is labeled RESPONSIVE.'],['gunner','I’ve already served interrogatories on all of you. Twenty-five each. Including subparts.'],['ghost','i’m someone’s outline from a past semester. my personal jurisdiction section is... vintage.'],['footnote','(Hello. I’m relevant and proportional.)'],['potato','more players means more passing. i’m dizzy already.']],
   win:[['gunner','I’m moving to compel a rematch.'],['','Far above, something bell-shaped is grading.']],
   lose:[['ghost','i failed this floor too. then i became an outline.'],['potato','discovery is long. so is life. again?']]},
- {name:'THE CURVE',cpus:['curve','knight','gunner','ghost','coldbrew','footnote','server'],boost:.08,
-  intro:[['','The room is shaped like a bell. You don’t remember walking in.'],['knight','Halt! Only those who know the black letter may pass.'],['curve','HELLO, STUDENT.'],['curve','I AM NOT YOUR ENEMY. I AM SIMPLY HOW THINGS ARE DISTRIBUTED.'],['curve','SOMEONE IN THIS ROOM WILL BE AT THE TOP. STATISTICALLY, IT IS NOT YOU.'],['potato','i’m very hot now. i believe in you. i also believe in being put down.']],
-  win:[['curve','IMPOSSIBLE. YOU ARE... AN OUTLIER.'],['curve','VERY WELL. I WILL BEND. JUST THIS ONCE.'],['potato','we did it. i can finally cool down.'],['','You climb out of the bell. The sun is up. You have an exam in four hours. You feel ready anyway.']],
+ {name:'THE CURVE',cpus:['curve','peterson','knight','gunner','ghost','coldbrew','footnote'],boost:.08,
+  intro:[['peterson','This is the final exam room. I\u2019ll be joining you at the table. Think of it as office hours, with a timer.'],['','The room is shaped like a bell. You don’t remember walking in.'],['knight','Halt! Only those who know the black letter may pass.'],['curve','HELLO, STUDENT.'],['curve','I AM NOT YOUR ENEMY. I AM SIMPLY HOW THINGS ARE DISTRIBUTED.'],['curve','SOMEONE IN THIS ROOM WILL BE AT THE TOP. STATISTICALLY, IT IS NOT YOU.'],['potato','i’m very hot now. i believe in you. i also believe in being put down.']],
+  win:[['peterson','Excellent work. You\u2019d do well on the real thing. Now go get some sleep.'],['curve','IMPOSSIBLE. YOU ARE... AN OUTLIER.'],['curve','VERY WELL. I WILL BEND. JUST THIS ONCE.'],['potato','we did it. i can finally cool down.'],['','You climb out of the bell. The sun is up. You have an exam in four hours. You feel ready anyway.']],
   lose:[['curve','DO NOT BE SAD. SOMEONE HAD TO BE BELOW THE MEDIAN.'],['potato','it’s a curve, not a cliff. try again.']]}]},
 {id:'torts',name:'THE REASONABLE WILDS',course:'Torts',sub:'Experimental · general 1L coverage',exp:true,color:'#ff6a3d',floors:[
  {name:'PALSGRAF STATION',cpus:['eggshell','moss'],boost:0,
-  intro:[['','A train platform. Down the track, someone is handling a package of fireworks carelessly.'],['eggshell','Hello. Please be gentle. Any contact with me has unforeseeable consequences.'],['moss','Ribbit. I’m outside the zone of danger. Probably.'],['potato','this world is experimental. like most tort theories.']],
+  intro:[['pimentel','Good morning. Torts is the law of what we owe each other. Let\u2019s begin, as we always do, with a train platform.'],['','A train platform. Down the track, someone is handling a package of fireworks carelessly.'],['eggshell','Hello. Please be gentle. Any contact with me has unforeseeable consequences.'],['moss','Ribbit. I’m outside the zone of danger. Probably.'],['potato','this world is experimental. like most tort theories.']],
   win:[['eggshell','You take me as you find me. And you found me... defeated.'],['','The scales at the end of the platform wobble. You walk past them carefully.']],
   lose:[['moss','Ribbit. Proximate cause got you.'],['potato','again? i’m foreseeable.']]},
  {name:'THE NEGLIGENCE WOODS',cpus:['eggshell','highlighta','coldbrew','ghost'],boost:.02,
-  intro:[['','The trees here are planted exactly where a reasonable person would plant them.'],['coldbrew','I HAVE BREACHED MY DUTY TO SLEEP.'],['highlighta','i highlighted the Hand formula. B is less than PL. it’s glowing.'],['eggshell','Careful. I break if you look at me.']],
+  intro:[['pimentel','Negligence. Duty, breach, causation, damages. Say it with me. Then say it faster, because the potato is warm.'],['','The trees here are planted exactly where a reasonable person would plant them.'],['coldbrew','I HAVE BREACHED MY DUTY TO SLEEP.'],['highlighta','i highlighted the Hand formula. B is less than PL. it’s glowing.'],['eggshell','Careful. I break if you look at me.']],
   win:[['coldbrew','I AM THE PROXIMATE CAUSE OF MY OWN DEFEAT.'],['','Ahead, a figure stands perfectly still. It is exactly average height.']],
   lose:[['ghost','even the reasonable person loses sometimes.'],['potato','res ipsa. you lost. try again.']]},
- {name:'THE REASONABLE PERSON',cpus:['reasonable','eggshell','knight','gunner','coldbrew','footnote','rap'],boost:.08,
-  intro:[['','A clearing. In the center stands someone you can’t quite picture.'],['reasonable','HELLO. I AM THE REASONABLE PERSON.'],['reasonable','I HAVE NEVER BEEN NEGLIGENT. I HAVE NEVER BEEN ANYTHING.'],['reasonable','I WILL NOW BEHAVE EXACTLY AS I SHOULD UNDER THE CIRCUMSTANCES.'],['potato','it has no face. i don’t like it.']],
-  win:[['reasonable','UNREASONABLE. BUT UNDER THE CIRCUMSTANCES... ACCEPTABLE.'],['potato','we survived the wilds. i need a nap.']],
+ {name:'THE REASONABLE PERSON',cpus:['reasonable','pimentel','eggshell','knight','gunner','coldbrew','rap'],boost:.08,
+  intro:[['pimentel','I\u2019ve taught this course for a very long time. Today, I\u2019ll play too. Do take care.'],['','A clearing. In the center stands someone you can’t quite picture.'],['reasonable','HELLO. I AM THE REASONABLE PERSON.'],['reasonable','I HAVE NEVER BEEN NEGLIGENT. I HAVE NEVER BEEN ANYTHING.'],['reasonable','I WILL NOW BEHAVE EXACTLY AS I SHOULD UNDER THE CIRCUMSTANCES.'],['potato','it has no face. i don’t like it.']],
+  win:[['pimentel','Wonderful. Reasonable, prudent, and quick. I\u2019m proud of you.'],['reasonable','UNREASONABLE. BUT UNDER THE CIRCUMSTANCES... ACCEPTABLE.'],['potato','we survived the wilds. i need a nap.']],
   lose:[['reasonable','YOU ACTED AS A REASONABLE PERSON WOULD. THAT IS WHY YOU LOST.'],['potato','that doesn’t make sense. try again.']]}]},
 {id:'k',name:'THE BARGAIN BAZAAR',course:'Contracts',sub:'Experimental · general 1L coverage',exp:true,color:'#ffd84a',floors:[
  {name:'THE MAILBOX',cpus:['pepper','moss'],boost:0,
-  intro:[['','A wall of mailboxes. Each one is accepting something on dispatch.'],['pepper','I’m a peppercorn. Someone traded me for a whole house once. I’m very valuable. Legally.'],['moss','Ribbit. That’s an offer. Ribbit. That’s acceptance.'],['potato','this world is experimental. offer and acceptance are not.']],
+  intro:[['tirrell','Welcome to Contracts. Every promise here is either a bargain or a gift. Your job is to tell which.'],['','A wall of mailboxes. Each one is accepting something on dispatch.'],['pepper','I’m a peppercorn. Someone traded me for a whole house once. I’m very valuable. Legally.'],['moss','Ribbit. That’s an offer. Ribbit. That’s acceptance.'],['potato','this world is experimental. offer and acceptance are not.']],
   win:[['pepper','You gave sufficient consideration. I’m impressed.'],['','A market opens ahead. Everything is for sale. Nothing is a gift.']],
   lose:[['moss','Ribbit. Counteroffer: try again.'],['potato','mailbox rule: your next try counts the moment you send it.']]},
  {name:'THE BAZAAR STALLS',cpus:['pepper','rap','coldbrew','highlighta'],boost:.02,
-  intro:[['','Stalls stretch in every direction. Every price tag says AS IS.'],['rap','I’m from Property. I sell interests that may never vest.'],['coldbrew','THIS COFFEE IS MERCHANTABLE. BARELY.'],['pepper','Everything here is a bargained-for exchange.']],
+  intro:[['tirrell','Consideration, defenses, the Statute of Frauds. Read the terms before you accept them. That includes the potato.'],['','Stalls stretch in every direction. Every price tag says AS IS.'],['rap','I’m from Property. I sell interests that may never vest.'],['coldbrew','THIS COFFEE IS MERCHANTABLE. BARELY.'],['pepper','Everything here is a bargained-for exchange.']],
   win:[['rap','You have vested. Within the period, even.'],['','At the end of the bazaar hangs a mirror. It is waiting for you to say something.']],
   lose:[['highlighta','i highlighted the parol evidence rule but forgot what it bars.'],['potato','substantial performance. not enough, though. again?']]},
- {name:'THE MIRROR IMAGE',cpus:['mirror','pepper','rap','knight','gunner','ghost','moss'],boost:.08,
-  intro:[['','A huge mirror. Your reflection is wearing a better suit.'],['mirror','HELLO. I ACCEPT YOUR TERMS.'],['mirror','EXACTLY YOUR TERMS. NO ADDITIONS. ANYTHING ELSE IS A COUNTEROFFER.'],['potato','it keeps repeating me. i’m hot. it’s hot. stop.']],
-  win:[['mirror','A MATERIAL ALTERATION... I CANNOT ACCEPT THIS... BUT I MUST.'],['potato','we did it. the bazaar is closed. everyone go home.']],
+ {name:'THE MIRROR IMAGE',cpus:['mirror','tirrell','pepper','rap','knight','gunner','ghost'],boost:.08,
+  intro:[['tirrell','I\u2019ll be taking a seat for this one. Consider it a firm offer to play.'],['','A huge mirror. Your reflection is wearing a better suit.'],['mirror','HELLO. I ACCEPT YOUR TERMS.'],['mirror','EXACTLY YOUR TERMS. NO ADDITIONS. ANYTHING ELSE IS A COUNTEROFFER.'],['potato','it keeps repeating me. i’m hot. it’s hot. stop.']],
+  win:[['tirrell','A fully performed contract. Well done.'],['mirror','A MATERIAL ALTERATION... I CANNOT ACCEPT THIS... BUT I MUST.'],['potato','we did it. the bazaar is closed. everyone go home.']],
   lose:[['mirror','YOUR ATTEMPT IS REJECTED. YOU MAY MAKE A NEW OFFER.'],['potato','try again. i’m a firm offer. irrevocable.']]}]}];
 const WBY=Object.fromEntries(WORLDS.map(w=>[w.id,w]));
 const NARR={right:['Correct. The potato respects you now. A little.','Right. Somewhere, a professor nods, then forgets.','Correct. You feel briefly employable.','Correct. The potato sighs with relief.'],wrong:['Wrong. The potato burns your hand. Metaphorically. Mostly.','Incorrect. The potato is passed. So is the blame.','Not quite. Your outline flinches.'],timeout:['Time’s up. The potato made the decision for you.','You hesitated. The potato did not.'],streak:['STREAK! A thin film of confidence protects you. Your clock gets shorter, though.'],shield:['Your streak shatters like a bad outline. But you’re still standing.'],elimYou:['You are out. You go sit with the other ghosts. There are snacks.'],topic:['The topic changes. The room gets warmer. It’s the potato.','A new topic crawls out of the syllabus.','The potato spins. It lands on something you half-remember.']};
@@ -106,28 +115,42 @@ try{const raw=localStorage.getItem('hpesq3');if(raw){const o=JSON.parse(raw);S={
 const save=()=>{try{localStorage.setItem('hpesq3',JSON.stringify(S))}catch(e){}};
 const prof=()=>S.profile;
 const myIcon=cls=>spr(ICONS[prof().icon],COLORS[prof().color],cls);
+const withCrown=(id,svg)=>{const n=crownN(id);return n?`<span class="crowned">${crownSvg(n,'oncap')}${svg}</span>`:svg};
 
 /* ================= online ================= */
 let ON=null,ME='me',onState=window.HP_FIREBASE?'connecting':'off',onErr='';
 async function goOnline(){
   if(!window.HP_FIREBASE)return;
-  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';}
+  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';loadCrowns();}
   catch(e){onState='error';onErr=String(e&&e.message||e);console.warn('Online unavailable:',e)}
   render();
 }
+
+/* ================= crowns ================= */
+const CROWNBOARDS=['cp-1','cp-2','cp-3','vs'];
+let CROWNS={};
+const crownN=id=>Math.min(3,CROWNS[id]||0);
+const CROWNC=['','#ffd84a','#6ad6ff','#ff6ad5'];
+const CROWNNAME=['','Gold crown','Diamond crown','Royal crown'];
+function crownSvg(n,cls){if(!n)return '';n=Math.min(3,n);const c=CROWNC[n],g=n===3?'#fff3a0':'#ffffff';
+  return `<svg class="crown c${n} ${cls||''}" viewBox="0 0 9 6" role="img" aria-label="${CROWNNAME[n]}"><path d="M0 1h1v1h1V0h1v2h1V0h1v2h1V0h1v2h1V1h1v5H0z" fill="${c}"/><rect x="1" y="4" width="7" height="1" fill="#000" opacity=".35"/><rect x="2" y="3" width="1" height="1" fill="${g}"/><rect x="4" y="3" width="1" height="1" fill="${n>1?g:c}"/><rect x="6" y="3" width="1" height="1" fill="${g}"/></svg>`}
+let crownBusy=0;
+async function loadCrowns(){if(!ON||crownBusy)return;crownBusy=1;const m={};try{await Promise.all(CROWNBOARDS.map(async b=>{try{const r=await ON.top(b,1);if(r&&r[0]&&r[0].uid)m[r[0].uid]=(m[r[0].uid]||0)+1}catch(e){}}))}finally{crownBusy=0}
+  const ch=JSON.stringify(m)!==JSON.stringify(CROWNS);CROWNS=m;if(ch&&(!G||G.phase!=='ask'))render()}
 
 /* ================= questions ================= */
 let D=null,TOP=[];
 const topicsFor=w=>TOP.filter(t=>t.world===w);
 function others(arr,i,n){return shuf(arr.map((x,j)=>[x,j]).filter(([x,j])=>j!==i&&x[0]!==arr[i][0])).slice(0,n).map(a=>a[0])}
 function genQ(t,used){
-  const T=t.terms||[],C=t.cases||[],M=t.mcq||[];
+  const T=t.terms||[],C=t.cases||[],M=t.mcq||[],H=t.hypo||[];
   const CT=C.length>=4?C.length:0;
-  const kinds=[['dt',.26,T.length],['mc',.3,M.length],['hc',.13,CT],['tf',.13,T.length+CT],['td',.11,T.length],['ch',.07,CT]].filter(k=>k[2]>=4||(k[0]==='mc'&&k[2]>0));
+  const kinds=[['dt',.2,T.length],['mc',.27,M.length],['hy',.27,H.length],['hc',.04,CT],['tf',.1,T.length+CT],['td',.1,T.length],['ch',.02,CT]].filter(k=>k[2]>=4||((k[0]==='mc'||k[0]==='hy')&&k[2]>0));
   for(let tries=0;tries<14;tries++){
     let r=Math.random()*kinds.reduce((s,k)=>s+k[1],0),k=kinds[0][0];for(const x of kinds){r-=x[1];if(r<=0){k=x[0];break}}
-    const n=k==='mc'?M.length:k==='tf'?T.length+CT:(k==='dt'||k==='td')?T.length:C.length,i=Math.floor(Math.random()*n),id=t.id+':'+k+':'+i;
+    const n=k==='mc'?M.length:k==='hy'?H.length:k==='tf'?T.length+CT:(k==='dt'||k==='td')?T.length:C.length,i=Math.floor(Math.random()*n),id=t.id+':'+k+':'+i;
     if(used.has(id)&&tries<13)continue;used.add(id);
+    if(k==='hy'){const m=H[i];return {id,kind:'Hypothetical',hypo:true,q:`<span class="hypo">${esc(m[0])}</span>`,opts:shuf([{t:m[1],ok:1},{t:m[2]},{t:m[3]},{t:m[4]}]),ans:m[1],e:m[5]}}
     if(k==='mc'){const m=M[i];return {id,kind:'Quick question',q:esc(m[0]),opts:shuf([{t:m[1],ok:1},{t:m[2]},{t:m[3]},{t:m[4]}]),ans:m[1],e:m[5]}}
     if(k==='dt'){const m=T[i];return {id,kind:'Name that term',q:`Which term means:<span class="quote">${esc(m[1])}</span>`,opts:shuf([{t:m[0],ok:1},...others(T,i,3).map(x=>({t:x[0]}))]),ans:m[0],e:`${m[0]}: ${m[1]}`}}
     if(k==='td'){const m=T[i];return {id,kind:'Define it',q:`What does “${esc(m[0])}” mean?`,opts:shuf([{t:m[1],ok:1},...others(T,i,3).map(x=>({t:x[1]}))]),ans:m[1],e:`${m[0]}: ${m[1]}`}}
@@ -162,25 +185,28 @@ const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['
 function titleV(){
   return `<div class="title"><div class="potato">${SPUD()}</div><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
-  <p class="dim" style="font-size:15px">${prof().name?`Signed in as <span class="gold">${esc(prof().name)}</span> · `:'Make a profile before you play · '}${onlineBadge()}</p></div>
+  <p class="dim" style="font-size:15px">${prof().name?`Signed in as ${crownN(ME)?crownSvg(crownN(ME),'inline'):''}<span class="gold">${esc(prof().name)}</span> · `:'Make a profile before you play · '}${onlineBadge()}</p></div>
   <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p>`;
 }
 function profileV(){
   const p=prof();
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>WHO ARE YOU?</h2>
-  <div class="prof"><div class="pv">${myIcon()}<div class="gold" style="font-size:22px">${esc(p.name||'???')}</div><p class="vt dim" style="margin:0">${p.name?'You look ready. You are not. That’s fine.':'The potato would like to know your name.'}</p></div>
+  <div class="prof"><div class="pv">${withCrown(ME,myIcon())}<div class="gold" style="font-size:22px">${esc(p.name||'???')}</div><p class="vt dim" style="margin:0">${p.name?'You look ready. You are not. That’s fine.':'The potato would like to know your name.'}</p>${crownBlock()}</div>
   <div><div class="lbl">USERNAME (up to 10 characters)</div><input type="text" id="nm" maxlength="10" value="${esc(p.name)}" autocomplete="off" spellcheck="false">
   <div class="lbl">ICON</div><div class="icons">${ICONS.map((n,i)=>`<button class="ic" data-act="icon" data-v="${i}" id="ic-${i}" aria-pressed="${p.icon===i}" aria-label="${n}">${spr(n,COLORS[p.color])}</button>`).join('')}</div>
   <div class="lbl">COLOR</div><div class="sws">${COLORS.map((c,i)=>`<button class="sw" style="background:${c}" data-act="color" data-v="${i}" id="sw-${i}" aria-pressed="${p.color===i}" aria-label="color ${i+1}"></button>`).join('')}</div>
   <div class="row" style="margin-top:16px"><button class="btn gold" data-act="saveprof" id="save">SAVE</button></div></div></div></div>`;
 }
+function crownBlock(){const n=crownN(ME),tot=CROWNS[ME]||0;
+  return `<div class="crownbox">${n?`<p class="gold" style="margin:0 0 6px">${CROWNNAME[n]} · #1 on ${tot} global leaderboard${tot>1?'s':''}</p>`:`<p class="dim" style="margin:0 0 6px;font-size:14px">${onState==='on'?'Hold #1 on any global leaderboard to wear a crown.':'Crowns are earned on the global leaderboards when online play is on.'}</p>`}
+  <div class="crownkey">${[1,2,3].map(k=>`<span>${crownSvg(k)}<small>#1 on ${k===3?'3+':k} board${k>1?'s':''}</small></span>`).join('')}</div></div>`}
 function worldsV(){
   return `<button class="back" data-act="home" id="back">◂ back</button><h2>STORY MODE</h2><p class="vt dim" style="margin-top:-4px">Three worlds. Three floors each. Every floor deeper, every floor hotter.</p>
-  <div class="stages">${WORLDS.map((w,i)=>{const done=[0,1,2].filter(f=>S.wins[w.id+'-'+f]).length;return `<button class="stage world" data-act="world" data-v="${w.id}" id="world-${w.id}" style="--wc:${w.color}"><span class="num" style="color:${w.color}">${['I','II','III'][i]}</span><span><small class="dim">${esc(w.course).toUpperCase()}</small><h3>${w.name}</h3><span class="dim" style="font-size:14px">${esc(w.sub)}</span>${w.exp?' <span class="tag exp">EXPERIMENTAL</span>':' <span class="tag ok">COURSEBOOK</span>'}</span><span class="st">${done}/3 floors<br>cleared</span></button>`}).join('')}</div>`;
+  <div class="stages">${WORLDS.map((w,i)=>{const done=[0,1,2].filter(f=>S.wins[w.id+'-'+f]).length;return `<button class="stage world" data-act="world" data-v="${w.id}" id="world-${w.id}" style="--wc:${w.color}"><span class="num" style="color:${w.color}">${['I','II','III'][i]}</span><span><small class="dim">${esc(w.course).toUpperCase()}</small><h3>${w.name}</h3><span class="dim" style="font-size:14px">${esc(w.sub)}</span>${w.exp?' <span class="tag exp">EXPERIMENTAL</span>':' <span class="tag ok">COURSEBOOK</span>'}</span><span class="st"><span class="profport">${spr(PROFOF[w.id],'')}</span>${esc(CPU[PROFOF[w.id]].n)}<br>${done}/3 floors cleared</span></button>`}).join('')}</div>`;
 }
 function floorsV(){
   const w=WBY[WSEL];
-  return `<button class="back" data-act="menu" data-v="story" id="back">◂ worlds</button><h2 style="color:${w.color}">${w.name}</h2><p class="vt dim" style="margin-top:-4px">${esc(w.course)} · ${topicsFor(w.id).length} topics${w.exp?' · experimental':''}</p><div class="stages">${w.floors.map((f,i)=>{const lock=i+1>S.prog[w.id],key=w.id+'-'+i,b=S.best[key];return `<button class="stage" data-act="floor" data-v="${i}" id="floor-${i}" ${lock?'disabled':''}><span class="num">${i+1}</span><span><h3>${lock?'??? LOCKED ???':f.name}</h3><span class="ops">${f.cpus.map(c=>lock?spr(CPU[c].s,'#444'):spr(CPU[c].s,CPU[c].c)).join('')}</span></span><span class="st">${f.cpus.length+1} players<br>${S.wins[key]?`won ×${S.wins[key]}`:lock?'beat floor '+i:'not cleared'}${b?`<br>best ${b} pts`:''}</span></button>`}).join('')}</div>`;
+  return `<button class="back" data-act="menu" data-v="story" id="back">◂ worlds</button><div class="profhead"><span class="profport big">${spr(PROFOF[w.id],'')}</span><div><h2 style="color:${w.color};margin:0">${w.name}</h2><span class="dim" style="font-size:15px">Taught by ${esc(CPU[PROFOF[w.id]].n.replace('PROF.','Professor'))}</span></div></div><p class="vt dim" style="margin-top:8px">${esc(w.course)} · ${topicsFor(w.id).length} topics${w.exp?' · experimental':''}</p><div class="stages">${w.floors.map((f,i)=>{const lock=i+1>S.prog[w.id],key=w.id+'-'+i,b=S.best[key];return `<button class="stage" data-act="floor" data-v="${i}" id="floor-${i}" ${lock?'disabled':''}><span class="num">${i+1}</span><span><h3>${lock?'??? LOCKED ???':f.name}</h3><span class="ops">${f.cpus.map(c=>lock?spr(CPU[c].s,'#444'):spr(CPU[c].s,CPU[c].c)).join('')}</span></span><span class="st">${f.cpus.length+1} players<br>${S.wins[key]?`won ×${S.wins[key]}`:lock?'beat floor '+i:'not cleared'}${b?`<br>best ${b} pts`:''}</span></button>`}).join('')}</div>`;
 }
 /* ---------- dialogue ---------- */
 function startDlg(lines,then){dlg={lines,i:0,ch:0,then};V='dlg';render();typeLoop()}
@@ -189,8 +215,8 @@ function dlgAdv(){if(!dlg)return;const L=dlg.lines[dlg.i][1];if(dlg.ch<L.length)
 function dlgV(){
   const [who,txt]=dlg.lines[dlg.i],fl=G&&G.mode==='story'?WBY[G.world].floors[G.floor]:null;
   const port=who==='potato'?SPUD():who?spr(CPU[who].s,CPU[who].c):'';
-  const cast=fl?`<div class="scene"><div class="cast">${fl.cpus.map(c=>spr(CPU[c].s,CPU[c].c)).join('')}${SPUD()}${myIcon()}</div><div class="dim" style="font-size:15px">${WBY[G.world].name} · ${fl.name}</div></div>`:'';
-  return `${cast}<div class="box dlg" data-act="dlg" id="dlgbox" style="${who?'':'grid-template-columns:minmax(0,1fr)'}">${who?`<div class="port">${port}</div>`:''}<div><div class="who">${who==='potato'?'THE POTATO':who?CPU[who].n:''}</div><div class="txt" id="dtxt">${esc(txt.slice(0,dlg.ch))}</div><div class="more" id="dmore" style="visibility:hidden">▼ tap or press Enter</div></div></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="back" data-act="skipdlg" id="skip">skip ▸▸</button></div>`;
+  const cast=fl?`<div class="scene"><div class="cast">${spr(PROFOF[G.world],'')}${fl.cpus.filter(c=>!CPU[c].prof).map(c=>spr(CPU[c].s,CPU[c].c)).join('')}${SPUD()}${myIcon()}</div><div class="dim" style="font-size:15px">${WBY[G.world].name} · ${fl.name}</div></div>`:'';
+  return `${cast}<div class="box dlg" data-act="dlg" id="dlgbox" style="${who?'':'grid-template-columns:minmax(0,1fr)'}">${who?`<div class="port">${port}</div>`:''}<div><div class="who">${who==='potato'?'THE POTATO':who?CPU[who].n.replace('PROF.','PROFESSOR'):''}</div><div class="txt" id="dtxt">${esc(txt.slice(0,dlg.ch))}</div><div class="more" id="dmore" style="visibility:hidden">▼ tap or press Enter</div></div></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="back" data-act="skipdlg" id="skip">skip ▸▸</button></div>`;
 }
 
 /* ================= game engine ================= */
@@ -199,7 +225,7 @@ const meP=()=>({id:ME,n:prof().name||'YOU',s:ICONS[prof().icon],c:COLORS[prof().
 function newG(o){return {players:[],turn:0,topic:null,recent:[],turnsLeft:0,q:null,phase:'topic',t:0,timer:S.settings.time*1000,used:new Set(),round:0,elim:[],narr:{t:'',c:''},bark:null,paused:false,spectate:false,maxRun:0,startT:performance.now(),turnId:0,inputs:{},...o}}
 function startStory(w,f){
   const fl=WBY[w].floors[f];
-  const ps=[meP(),...fl.cpus.map(k=>({id:'bot_'+k,n:CPU[k].n,s:CPU[k].s,c:CPU[k].c,cpu:{...CPU[k],acc:Math.min(.95,CPU[k].acc+fl.boost)}}))].map(mkPlayer);
+  const ps=[meP(),...fl.cpus.map(k=>({id:'bot_'+k,n:CPU[k].n,s:CPU[k].s,c:CPU[k].c,cpu:{...CPU[k],acc:CPU[k].prof?CPU[k].acc:Math.min(.95,CPU[k].acc+fl.boost)}}))].map(mkPlayer);
   G=newG({mode:'story',world:w,floor:f,players:ps});
   const go2=()=>{V='game';newTopic();render();startLoop()};const sk=w+'-'+f;if(S.seen[sk])go2();else{S.seen[sk]=1;save();startDlg(fl.intro,go2)}
 }
@@ -212,18 +238,18 @@ function gameTopics(){const w=G.mode==='story'?G.world:'cp';return topicsFor(w)}
 function newTopic(){
   const all=gameTopics(),ts=all.filter(t=>!G.recent.includes(t.id)),t=pick(ts.length?ts:all);G.recent=[...G.recent,t.id].slice(-5);
   G.topic=t;G.round++;G.turnsLeft=2*alive().length;G.q=null;G.phase='topic';G.phaseT=2200/spd();
-  if(G.round>1)say(pick(NARR.topic),'');
+  if(G.round>1){if(G.mode==='story'&&Math.random()<.6){const pr=CPU[PROFOF[G.world]];say(`${pr.n.replace('PROF.','PROFESSOR')}: \u201cLet\u2019s turn to ${t.name}.\u201d`,'')}else say(pick(NARR.topic),'')}
 }
 function say(t,c){G.narr={t,c}}
 function bark(p,kind){if(!p.cpu||Math.random()>.65)return;const L=p.cpu[kind];if(!L)return;const t=pick(L);G.bark={id:p.id,text:t,until:performance.now()+2200};if(G.mode!=='story'&&Math.random()<.6)chatSend(p,t,true)}
 function startTurn(){
   const p=G.players[G.turn];G.turnId++;
   if(!G.q||G.q.solved)G.q=Object.assign(genQ(G.topic,G.used),{elim:[],solved:false,passes:0});
-  const base=S.settings.time*1000;G.fastT=p.streak;G.timer=p.streak?Math.max(5000,base-5000):base;
+  const base=G.q.hypo?20000:S.settings.time*1000;G.fastT=p.streak;G.timer=p.streak?Math.max(5000,base-5000):base;
   G.phase='ask';G.t=G.timer;G.pickI=null;G.res=null;G.cpuPlan=null;G.pop=null;
   if(p.cpu){
     const left=G.q.opts.map((o,i)=>i).filter(i=>!G.q.elim.includes(i)),ci=G.q.opts.findIndex(o=>o.ok);
-    const k=p.cpu.acc-(G.q.kind==='Define it'||G.q.kind==='What did it hold?'?.05:0);
+    const k=p.cpu.acc-(G.q.kind==='Define it'||G.q.kind==='What did it hold?'||G.q.hypo?.05:0);
     const choice=Math.random()<k?ci:pick(left.filter(i=>i!==ci).concat(left.length===1?[ci]:[]));
     const sp=(p.cpu.spd||1)*spd();let at=(900+Math.random()*G.timer*.5)/sp;at=Math.min(at,G.timer-500);if(Math.random()<.03)at=G.timer+1000;
     G.cpuPlan={at:G.timer-at,choice};
@@ -275,7 +301,7 @@ function endGame(){
     if(won){S.wins[key]=(S.wins[key]||0)+1;S.prog[w]=Math.max(S.prog[w],Math.min(3,f+2))}
     S.best[key]=Math.max(S.best[key]||0,me.score);
     const e=entry(me,place,{players:G.players.length}),rank=lbLocal(w+'-'+(f+1),e);
-    if(ON&&w==='cp')ON.submit('cp-'+(f+1),e).catch(()=>{});
+    if(ON&&w==='cp')ON.submit('cp-'+(f+1),e).then(loadCrowns).catch(()=>{});
     save();G.result={won,place,acc:me.ans?Math.round(me.right/me.ans*100):0,right:me.right,score:me.score,rank};
     startDlg(won?fl.win:fl.lose,()=>{V='game';G.phase='over';render()});return;
   }
@@ -289,7 +315,7 @@ function endGame(){
 }
 function recordVS(me,place,n,online){
   const e=entry(me,place,{players:n,online});G.myRank=lbLocal('vs',e);
-  if(online&&ON)ON.submit('vs',e).catch(()=>{});
+  if(online&&ON)ON.submit('vs',e).then(loadCrowns).catch(()=>{});
   save();
 }
 function loopFn(){
@@ -313,7 +339,7 @@ function seatPos(i,n){const a=Math.PI/2+i*2*Math.PI/n;return [50+38*Math.cos(a),
 /* ---------- game view (works for local games and for online clients) ---------- */
 function gameV(g){
   const n=g.players.length,act=g.players[g.turn]||g.players[0],q=g.q;
-  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?'shield':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${spr(p.s,p.c)}</div><div class="nm">${esc(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${[0,1,2,3,4].map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
+  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?'shield':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${esc(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${[0,1,2,3,4].map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
   const [sx,sy]=seatPos(g.turn,n),px=50+(sx-50)*.55,py=50+(sy-50)*.55;
   let bk='';if(g.bark){const bi=g.players.findIndex(p=>p.id===g.bark.id);if(bi>=0){const [bx,by]=seatPos(bi,n),up=by<50;bk=`<div class="bark ${up?'dn':''}" id="bark" style="left:${Math.min(78,Math.max(22,bx))}%;top:${up?by+14:by-9}%">${esc(g.bark.text)}</div>`}}
   let pop='';if(g.pop){const pi=g.players.findIndex(p=>p.id===g.pop.id);if(pi>=0){const [ox,oy]=seatPos(pi,n);pop=`<div class="ptpop" style="left:${ox}%;top:${oy-6}%">+${g.pop.pts}${g.pop.bonus&&g.pop.bonus.length?`<small>${g.pop.bonus.join(' + ')} ×1.25</small>`:''}</div>`}}
@@ -331,7 +357,7 @@ function gameV(g){
     const who=g.phase==='ask'?(isMe(act)?'<b>YOUR TURN</b>':`<b>${esc(act.n)}</b> is answering…`):`<b>${esc(act.n)}</b> ${g.res==='ok'?'got it':g.pickI<0?'ran out of time':'missed'}`;
     const exp=rev&&q.solved&&q.e?`<div class="exp">${g.res!=='ok'?`Answer: ${esc(q.ans)}. `:''}${esc(q.e)}</div>`:'';
     const tleft=g.phase==='ask'?(g.client?g.cT:g.t):0;
-    box=`<div class="box qbox"><div class="who"><span>${who}</span><span class="dim">${esc(q.kind)}${q.passes?` · passed ×${q.passes}`:''} · worth ${Math.round(100*Math.pow(.75,q.elim.length))}</span></div><div class="trow"><div class="timer"><i id="tbar" style="width:${Math.max(0,tleft/g.timer*100)}%"></i></div><span class="tnum ${g.fastT?'fast':''}" id="tnum">${Math.max(0,Math.ceil(tleft/1000))}s</span></div>${g.phase==='ask'&&g.fastT?`<div class="dim" style="font-size:14px;margin:-6px 0 10px;color:var(--cyan)">Streak active: ${g.timer/1000}-second clock</div>`:''}<p class="q">${q.q}</p><div class="opts">${opts}</div>${exp}${rev&&g.wait?`<div class="row" style="margin-top:12px"><button class="btn gold" data-act="next" id="next">NEXT ▸</button></div>`:''}</div>`;
+    box=`<div class="box qbox"><div class="who"><span>${who}</span><span class="dim">${esc(q.kind)}${q.passes?` · passed ×${q.passes}`:''} · worth ${Math.round(100*Math.pow(.75,q.elim.length))}</span></div><div class="trow"><div class="timer"><i id="tbar" style="width:${Math.max(0,tleft/g.timer*100)}%"></i></div><span class="tnum ${g.fastT?'fast':''}" id="tnum">${Math.max(0,Math.ceil(tleft/1000))}s</span></div>${g.phase==='ask'&&g.fastT?`<div class="dim" style="font-size:14px;margin:-6px 0 10px;color:var(--cyan)">Streak active: ${g.timer/1000}-second clock</div>`:''}${g.phase==='ask'&&q.hypo&&!g.fastT?`<div class="dim" style="font-size:14px;margin:-6px 0 10px;color:var(--gold)">Hypothetical: 20-second clock</div>`:''}<p class="q">${q.q}</p><div class="opts">${opts}</div>${exp}${rev&&g.wait?`<div class="row" style="margin-top:12px"><button class="btn gold" data-act="next" id="next">NEXT ▸</button></div>`:''}</div>`;
   }else box=`<div class="box qbox"><p class="vt dim" style="margin:0">The potato is choosing a topic. It is taking this very seriously.</p></div>`;
   let nr=g.narr||{t:'',c:''};
   if(g.net&&g.phase==='reveal'&&isMe(act)){const me=act,P=(a)=>a[(g.turnId||0)%a.length];nr=g.res==='ok'?(me.streak&&me.run===3?{t:P(NARR.streak),c:'cyan'}:{t:P(NARR.right),c:'good'}):g.res==='shield'?{t:P(NARR.shield),c:'cyan'}:!me.alive?{t:P(NARR.elimYou),c:'hot'}:{t:g.pickI<0?P(NARR.timeout):P(NARR.wrong),c:'hot'}}
@@ -422,9 +448,9 @@ function lobbyV(){
   const sl=lobbySlotsArr(),empty=8-sl.length,host=LOBBY.host;
   const tag=x=>x.id===ME?(host?'host · you':'you'):x.bot?`bot · ${x.diff}`:(LOBBY.meta&&LOBBY.meta.host===x.id?'host':'player');
   return `<button class="back" data-act="leavelobby" id="back">◂ leave lobby</button><div class="vsgrid"><div class="box"><div class="dim" style="font-size:14px">${LOBBY.net?'ONLINE LOBBY CODE':'PRACTICE LOBBY (OFFLINE)'}</div><div class="code">${esc(LOBBY.code)}</div><p class="dim" style="font-size:14px;margin:2px 0 12px">${LOBBY.net?'Classmates join from VS MODE with this code.':'Bots only. Create an online lobby to play with people.'} ${sl.length}/8 players.</p>
-  <div class="slots">${sl.map(x=>`<div class="slot">${spr(x.s,x.c)}<div class="sn">${esc(x.n)}<small>${tag(x)}</small></div>${x.bot&&host?`<button class="x" data-act="rmbot" data-v="${esc(x.id)}" id="rm-${esc(x.id)}" aria-label="Remove ${esc(x.n)}">✕</button>`:''}</div>`).join('')}${empty?`<div class="slot empty">${empty} open seat${empty>1?'s':''}${LOBBY.net?': waiting for players…':''}</div>`:''}</div></div>
+  <div class="slots">${sl.map(x=>`<div class="slot">${withCrown(x.id,spr(x.s,x.c))}<div class="sn">${esc(x.n)}<small>${tag(x)}</small></div>${x.bot&&host?`<button class="x" data-act="rmbot" data-v="${esc(x.id)}" id="rm-${esc(x.id)}" aria-label="Remove ${esc(x.n)}">✕</button>`:''}</div>`).join('')}${empty?`<div class="slot empty">${empty} open seat${empty>1?'s':''}${LOBBY.net?': waiting for players…':''}</div>`:''}</div></div>
   <div class="box">${host?`<h3>ADD A BOT</h3><div class="diffs" style="margin:10px 0 14px">${Object.keys(DIFF).map(d=>`<button class="chip" data-act="addbot" data-v="${d}" id="bot-${d}" ${sl.length>=8?'disabled':''}>+ ${d}</button>`).join('')}</div>`:''}
-  <h3>MATCH RULES</h3><p class="dim" style="font-size:15px;margin:6px 0 14px">Civil Procedure topics · ${S.settings.time}-second timer (${S.settings.time-5}s on a streak) · 5 lives${LOBBY.net&&!host?' · the host’s timer setting applies':''}.</p>
+  <h3>MATCH RULES</h3><p class="dim" style="font-size:15px;margin:6px 0 14px">Civil Procedure topics · ${S.settings.time}-second timer (${S.settings.time-5}s on a streak; hypotheticals 20s) · 5 lives${LOBBY.net&&!host?' · the host’s timer setting applies':''}.</p>
   ${host?`<button class="btn gold" data-act="startvs" id="startvs" ${sl.length<2?'disabled':''}>START MATCH</button>${sl.length<2?'<p class="dim" style="font-size:14px">Add a bot or wait for a classmate.</p>':''}`:'<p class="vt dim">Waiting for the host to start…</p>'}</div></div>`;
 }
 function startVS(){
@@ -442,7 +468,7 @@ function publish(){
   const st={turnId:G.turnId,phase:G.phase==='dead'?'reveal':G.phase,turn:G.turn,round:G.round,turnsLeft:G.turnsLeft,timer:G.timer,fastT:!!G.fastT,deadline:G.phase==='ask'?ON.now()+G.t:0,
     topic:G.topic?{name:G.topic.name,course:G.topic.course,ch:G.topic.ch||''}:null,
     players:G.players.map(p=>({id:p.id,n:p.n,s:p.s,c:p.c,lives:p.lives,run:p.run,streak:p.streak,alive:p.alive,score:p.score,bot:!!p.cpu})),
-    q:q?{kind:q.kind,q:q.q,opts:q.opts.map(o=>o.t),elim:q.elim,passes:q.passes,solved:!!q.solved,ok:rev&&(q.solved||G.res==='ok')?q.opts.findIndex(o=>o.ok):-1,ans:q.solved?q.ans:'',e:q.solved?q.e:''}:null,
+    q:q?{kind:q.kind,hypo:!!q.hypo,q:q.q,opts:q.opts.map(o=>o.t),elim:q.elim,passes:q.passes,solved:!!q.solved,ok:rev&&(q.solved||G.res==='ok')?q.opts.findIndex(o=>o.ok):-1,ans:q.solved?q.ans:'',e:q.solved?q.e:''}:null,
     pickI:G.pickI==null?null:G.pickI,res:G.res||null,narr:G.narr,pop:G.pop||null,bark:G.bark?{id:G.bark.id,text:G.bark.text}:null,
     result:G.phase==='over'?{st:G.result.st}:null};
   ON.publish(LOBBY.code,st).catch(()=>{});lastPub=performance.now();
@@ -452,7 +478,7 @@ function applyState(st){
   const prevOver=G.phase==='over';
   Object.assign(G,{turnId:st.turnId,phase:st.phase,turn:st.turn,round:st.round,turnsLeft:st.turnsLeft,timer:st.timer,fastT:st.fastT,deadline:st.deadline,topic:st.topic,narr:st.narr||{t:'',c:''},pop:st.pop,bark:st.bark,pickI:st.pickI,res:st.res,
     players:(st.players||[]).map(p=>({...p,cpu:p.bot?{}:null})),
-    q:st.q?{kind:st.q.kind,q:st.q.q,opts:(st.q.opts||[]).map((t,i)=>({t,ok:i===st.q.ok})),elim:st.q.elim||[],passes:st.q.passes,solved:st.q.solved,ans:st.q.ans,e:st.q.e}:null,
+    q:st.q?{kind:st.q.kind,hypo:!!st.q.hypo,q:st.q.q,opts:(st.q.opts||[]).map((t,i)=>({t,ok:i===st.q.ok})),elim:st.q.elim||[],passes:st.q.passes,solved:st.q.solved,ans:st.q.ans,e:st.q.e}:null,
     result:st.result});
   G.cT=G.deadline?G.deadline-ON.now():0;
   if(st.phase==='over'&&!prevOver&&!G.recorded){G.recorded=true;const me=G.players.find(isMe);if(me){const place=st.result.st.indexOf(ME)+1;G.maxRun=0;recordVS(me,place,G.players.length,true)}}
@@ -465,9 +491,9 @@ function clientAnswer(i){if(!G||!G.client||G.phase!=='ask'||G.sentTurn===G.turnI
 /* ================= leaderboards ================= */
 const boardKey=()=>BOARD==='vs'?'vs':`${BW}-${BF+1}`;
 const onlineBoard=k=>ON&&(k==='vs'||/^cp-\d$/.test(k));
-async function loadBoard(){const k=boardKey();if(!onlineBoard(k))return;BOARDDATA[k]={loading:true};render();try{BOARDDATA[k]={rows:await ON.top(k,10)}}catch(e){BOARDDATA[k]={err:true}}if(V==='boards')render()}
+async function loadBoard(){const k=boardKey();if(!onlineBoard(k))return;loadCrowns();BOARDDATA[k]={loading:true};render();try{BOARDDATA[k]={rows:await ON.top(k,10)}}catch(e){BOARDDATA[k]={err:true}}if(V==='boards')render()}
 function lbTable(list,mine){if(!list||!list.length)return '<p class="vt dim">No scores yet. The potato is waiting for greatness. Or adequacy.</p>';
-  return `<table class="lbt"><tr><td>#</td><td>PLAYER</td><td>RESULT</td><td>POINTS</td></tr>${list.map((e,i)=>`<tr class="${(mine?e.uid===ME:e.name===prof().name)?'me':''}"><td>${i+1}</td><td class="nm">${spr(ICONS[e.icon]||'potato',COLORS[e.color]||'#fff')}${esc(e.name)}</td><td class="dim" style="font-size:14px">${e.won?'won':ordinal(e.place||0)}${e.players?` of ${e.players}`:''}${e.date?' · '+esc(e.date):''}</td><td>${Number(e.score)||0}</td></tr>`).join('')}</table>`}
+  return `<table class="lbt"><tr><td>#</td><td>PLAYER</td><td>RESULT</td><td>POINTS</td></tr>${list.map((e,i)=>`<tr class="${(mine?e.uid===ME:e.name===prof().name)?'me':''}"><td>${i+1}</td><td class="nm">${mine&&e.uid&&crownN(e.uid)?crownSvg(crownN(e.uid),'inline'):''}${spr(ICONS[e.icon]||'potato',COLORS[e.color]||'#fff')}${esc(e.name)}</td><td class="dim" style="font-size:14px">${e.won?'won':ordinal(e.place||0)}${e.players?` of ${e.players}`:''}${e.date?' · '+esc(e.date):''}</td><td>${Number(e.score)||0}</td></tr>`).join('')}</table>`}
 function boardsV(){
   const k=boardKey(),on=onlineBoard(k),d=BOARDDATA[k];
   const tab=(v,l)=>`<button class="chip" data-act="board" data-v="${v}" id="tab-${v}" aria-pressed="${BOARD===v}">${l}</button>`;
@@ -485,7 +511,7 @@ function recordsV(){
 function settingsV(){
   const st=S.settings,ch=(k,v,l)=>`<button class="chip" data-act="set" data-k="${k}" data-v="${v}" id="set-${k}-${v}" aria-pressed="${st[k]==v}">${l}</button>`;
   return `<button class="back" data-act="home" id="back">◂ back</button><div class="box"><h2>SETTINGS</h2>
-  <div class="set"><div class="lbl">ANSWER TIMER (players on a streak get 5 seconds less)</div><div class="chips">${ch('time',10,'10 sec')}${ch('time',15,'15 sec')}${ch('time',20,'20 sec')}</div></div>
+  <div class="set"><div class="lbl">ANSWER TIMER (players on a streak get 5 seconds less; hypotheticals always start at 20 seconds)</div><div class="chips">${ch('time',10,'10 sec')}${ch('time',15,'15 sec')}${ch('time',20,'20 sec')}</div></div>
   <div class="set"><div class="lbl">CPU AND GAME PACE (offline games)</div><div class="chips">${ch('speed',.75,'chill')}${ch('speed',1,'normal')}${ch('speed',1.6,'zoom')}</div></div>
   <div class="set"><div class="lbl">TEXT SPEED</div><div class="chips">${ch('text',0,'slow')}${ch('text',1,'normal')}${ch('text',2,'instant')}</div></div>
   <div class="set"><div class="lbl">ONLINE</div><p style="margin:0">${onlineBadge()}${onState==='off'?'<br><span class="dim" style="font-size:14px">Add your Firebase settings to config.js to turn on online play (see SETUP.md).</span>':''}</p></div>

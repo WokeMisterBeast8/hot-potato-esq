@@ -188,3 +188,35 @@ kbd{font-family:'VT323',monospace;border:2px solid #444;padding:0 4px;font-size:
 .good{color:var(--good)}.bad{color:var(--bad)}
 .stage.world{border-color:var(--wc)}
 .stage.world h3{color:var(--wc)}
+/* ---- crowns ---- */
+.crown{display:inline-block;width:22px;height:15px;image-rendering:pixelated;shape-rendering:crispEdges;vertical-align:middle;filter:drop-shadow(0 1px 0 #000)}
+.crown.inline{width:18px;height:12px;margin-right:4px}
+.crown.c3{animation:royal 2.4s linear infinite}
+@keyframes royal{0%,100%{filter:drop-shadow(0 0 2px #ff6ad5)}50%{filter:drop-shadow(0 0 6px #ffe14a) brightness(1.25)}}
+@media (prefers-reduced-motion:reduce){.crown.c3{animation:none;filter:drop-shadow(0 0 3px #ff6ad5)}}
+.crowned{position:relative;display:inline-block}
+.crown.oncap{position:absolute;left:50%;top:-12px;transform:translateX(-50%);z-index:2;width:26px;height:17px}
+.av{position:relative}
+.pv .crowned .crown.oncap{top:-20px;width:44px;height:29px}
+.crownbox{margin-top:12px;padding:8px 10px;border:2px dashed #444}
+.crownkey{display:flex;gap:14px;flex-wrap:wrap}
+.crownkey span{display:flex;align-items:center;gap:5px}
+.crownkey small{color:#aaa;font-size:13px}
+/* ---- professors ---- */
+.prof16{shape-rendering:crispEdges}
+.profport{display:inline-block;vertical-align:middle;margin-right:6px}
+.profport .pix{width:34px;height:34px}
+.profport.big .pix{width:64px;height:64px}
+.profhead{display:flex;align-items:center;gap:12px}
+/* crown sizing overrides (beat generic svg rules) */
+.lbt td.nm svg.crown{width:18px;height:12px}
+.slot .crowned{flex:none;width:34px;height:34px}
+.slot .crowned svg.pix{width:34px;height:34px}
+.slot svg.crown.oncap{width:22px;height:15px;top:-11px}
+.seat .av svg.crown.oncap{width:48%;height:auto;top:-30%}
+.pv .crowned{display:block;width:min(150px,60%)}
+.pv .crowned svg.pix{width:100%}
+.pv svg.crown.oncap{width:44%;height:auto;top:-22%}
+.crownkey svg.crown{width:22px;height:15px}
+.stage .profport .pix{width:34px;height:34px}
+.scene .cast svg.prof16{width:clamp(60px,14vw,90px)}
