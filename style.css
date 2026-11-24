@@ -305,3 +305,4 @@ input[type=text]:disabled{opacity:.6}
 @media(min-width:701px){#app{padding-top:48px}}
 .seat.streak .av{box-shadow:0 0 0 2px var(--cyan)}
 .blank{display:inline-block;min-width:4.5em;border-bottom:3px solid var(--gold);color:transparent;margin:0 4px;line-height:1}
+@media(max-width:859px){.homeL .build{text-align:center}}

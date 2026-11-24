@@ -353,7 +353,7 @@ document.addEventListener('submit',async e=>{
 
 async function goOnline(){
   if(!window.HP_FIREBASE)return;
-  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);ME=ON.uid;onState='on';await accountBoot();loadCrowns();gStart();}
+  try{const m=await import('./online.js');ON=await m.connect(window.HP_FIREBASE);{const old=ME;ME=ON.uid;if(G&&old!==ME)G.players.forEach(p=>{if(p.id===old)p.id=ME})}onState='on';await accountBoot();loadCrowns();gStart();}
   catch(e){onState='error';onErr=String(e&&e.message||e);console.warn('Online unavailable:',e)}
   render();
 }
@@ -449,11 +449,12 @@ function render(){
 }
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
 const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
+const BUILD='build 15 · Nov 23';
 function titleV(){
   return `<div class="home"><div class="homeL"><div class="title"><div class="potato">${SPUD()}</div><div class="tblock"><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><div class="credit">made by <b>COOPER</b> from Civ Pro</div></div><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
   <p class="dim signed" style="font-size:15px">${prof().name?`Signed in as ${crownN(ME)?crownSvg(crownN(ME),'inline'):''}<span class="gold">${esc(prof().name)}</span> · `:'Make a profile before you play · '}${onlineBadge()}</p></div>
-  <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p></div><div class="homeR" id="gslot"></div></div>`;
+  <p class="note">A hot-potato trivia game for 1L finals. Original characters and questions. The Civil Procedure world is built from your coursebook; Torts and Contracts are experimental, general coverage. Check anything surprising against your materials. Keys: <kbd>↑</kbd><kbd>↓</kbd> and <kbd>Enter</kbd> in menus, <kbd>1</kbd>–<kbd>4</kbd> to answer, <kbd>P</kbd> to pause.</p><p class="dim build" style="font-size:12px;margin:4px 0 0">${BUILD}</p></div><div class="homeR" id="gslot"></div></div>`;
 }
 function profileV(){
   const p=prof();if(ON&&!S.reg&&p.name&&NAMESTAT.n!==p.name)setTimeout(()=>checkName(p.name),0);
@@ -524,7 +525,8 @@ function startTurn(){
   if(p.remote&&p.gone)G.cpuPlan={at:G.timer-1200,choice:-1};
   render();
 }
-const shieldOK=(g,p)=>g.mode==='story'&&isMe(p);
+// The streak shield protects only the human player's own character, and only in Story Mode. CPUs never get it.
+const shieldOK=(g,p)=>!!p&&g.mode==='story'&&!p.cpu&&!p.remote&&isMe(p);
 function answer(i){
   if(G.phase!=='ask')return;G.pop=null;const p=G.players[G.turn],q=G.q,ok=i>=0&&!!q.opts[i].ok;G.pickI=i;p.ans++;
   if(isMe(p)){S.answered++;if(ok)S.right++}
