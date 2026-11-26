@@ -226,7 +226,7 @@ function musInit(){
   MUS.waves={p12:mk(.125),p25:mk(.25),p50:mk(.5)};
   // campaign voices: a soft overdriven guitar and an electric piano
   const mkH=f=>{const n=32,re=new Float32Array(n),im=new Float32Array(n);for(let k=1;k<n;k++)im[k]=f(k);return c.createPeriodicWave(re,im)};
-  MUS.waves.gtr=mkH(k=>k>22?0:(k%2?1:.55)/Math.pow(k,1.25));MUS.waves.keys=mkH(k=>[0,1,.38,.14,.07,.03][k]||0);
+  MUS.waves.gtr=mkH(k=>k>22?0:(k%2?1:.55)/Math.pow(k,1.25));MUS.waves.keys=mkH(k=>[0,1,.38,.14,.07,.03][k]||0);MUS.waves.bell=mkH(k=>({1:1,2:.08,3:.5,5:.28,7:.14,9:.06})[k]||0);
   const b=c.createBuffer(1,c.sampleRate,c.sampleRate),ch=b.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=Math.random()*2-1;MUS.noise=b;
   document.addEventListener('visibilitychange',()=>{if(!MUS.ctx)return;if(document.hidden)MUS.ctx.suspend();else if(musVol()>0)MUS.ctx.resume()});
   return true;
@@ -549,7 +549,7 @@ function render(){
 }
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
 const MENU=[['STORY MODE','story'],['VS MODE','vs'],['CAMPAIGN · BETA','camp'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
-const BUILD='build 20 · Nov 25';
+const BUILD='build 21 · Nov 26';
 function titleV(){
   return `<div class="home"><div class="homeL"><div class="title"><div class="potato">${SPUD()}</div><div class="tblock"><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><div class="credit">made by <b>COOPER</b> from Civ Pro</div></div><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
@@ -602,8 +602,8 @@ const meNarr=p=>isMe(p)&&!(G&&G.net);
 const spd=()=>S.settings.speed*(G&&G.spectate?3:1);
 const alive=()=>G.players.filter(p=>p.alive);
 function nextAlive(i){const n=G.players.length;for(let k=1;k<=n;k++){const j=(i+k)%n;if(G.players[j].alive)return j}return i}
-function gameTopics(){if(G.camp)return topicsFor('cp').filter(t=>!G.camp.topics||G.camp.topics.includes(t.id));const w=G.mode==='story'?G.world:'cp';return topicsFor(w)}
-function newTopic(){
+function gameTopics(){if(G.camp)return topicsFor(G.camp.world||'cp').filter(t=>!G.camp.topics||G.camp.topics.includes(t.id));const w=G.mode==='story'?G.world:'cp';return topicsFor(w)}
+function newTopic(){if(G&&G.camp)campTopic();
   const all=gameTopics(),ts=all.filter(t=>!G.recent.includes(t.id)),t=pick(ts.length?ts:all);G.recent=[...G.recent,t.id].slice(-5);
   G.topic=t;G.round++;G.turnsLeft=2*alive().length;G.q=null;G.phase='topic';G.phaseT=2200/spd();
   if(G.round>1){if(G.mode==='story'&&(!G.camp||G.camp.boss)&&Math.random()<.6){const pr=CPU[PROFOF[G.world]];say(`${pr.n.replace('PROF.','PROFESSOR')}: \u201cLet\u2019s turn to ${t.name}.\u201d`,'')}else say(pick(NARR.topic),'')}
@@ -638,7 +638,7 @@ function answer(i){
     if(p.redeem){m*=1.25;bonus.push('REDEMPTION')}const runNow=p.run+1;if(runNow>=5){m*=1.5;bonus.push('HOT STREAK ×1.5')}else if(runNow>=3){m*=1.25;bonus.push('STREAK ×1.25')}
     const pts=Math.round(base*m);p.score+=pts;p.redeem=false;G.pop={id:p.id,pts,bonus};
     p.right++;p.run++;q.solved=true;if(isMe(p))G.maxRun=Math.max(G.maxRun,p.run);
-    if(p.run>=(p.stk||3)&&!p.streak){p.streak=true;if(meNarr(p))say(shieldOK(G,p)?pick(NARR.streak):NARR_VSSTREAK,'cyan');else{say(`${p.n} has a STREAK: bonus points, shorter clock.`,'cyan');bark(p,'streak')}}
+    if(p.run>=(p.stk||3)&&!p.streak){p.streak=true;if(G.camp)campStreak(p);if(meNarr(p))say(shieldOK(G,p)?pick(NARR.streak):NARR_VSSTREAK,'cyan');else{say(`${p.n} has a STREAK: bonus points, shorter clock.`,'cyan');bark(p,'streak')}}
     else if(meNarr(p))say(pick(NARR.right),'good');else{say(`${p.n} got it.`,'');bark(p,'right')}
     if(G.camp)campRight(p);
     G.res='ok';
@@ -647,12 +647,12 @@ function answer(i){
     if(G.camp&&campWrong(p,i)){}
     else if(p.ward){p.ward=0;p.run=0;p.redeem=false;say(isMe(p)?'Your BLUEBOOK BUCKLER takes the hit. No life lost.':`${p.n}’s shield takes the hit.`,'cyan');G.res='shield'}
     else if(p.streak&&shieldOK(G,p)){p.streak=false;p.run=0;p.redeem=false;if(meNarr(p))say(pick(NARR.shield),'cyan');else{say(`${p.n}’s streak shatters. No life lost.`,'cyan');bark(p,'wrong')}G.res='shield'}
-    else{const hadStreak=p.streak;p.lives--;if(p.lives<=0&&p.cert){p.cert=0;p.lives=1;G.certNote=1}p.run=0;p.streak=false;p.redeem=true;G.res='hurt';if(hadStreak&&!meNarr(p)&&p.lives>0)say(`${p.n}’s streak ends, and so does a life.`,'');
+    else{const hadStreak=p.streak;p.lives--;if(G.camp)campLost(p);if(p.lives<=0&&p.cert){p.cert=0;p.lives=1;G.cnote='CERT PETITION GRANTED. You survive with 1 life.'}p.run=0;p.streak=false;p.redeem=true;G.res='hurt';if(hadStreak&&!meNarr(p)&&p.lives>0)say(`${p.n}’s streak ends, and so does a life.`,'');
       if(p.lives<=0){p.alive=false;G.elim.push(p.id);if(meNarr(p))say(pick(NARR.elimYou),'hot');else{say(`${p.n} is out.`,'hot');if(p.cpu){const t=pick(p.cpu.elim);G.bark={id:p.id,text:t,until:performance.now()+2600}}}}
       else if(meNarr(p))say(i<0?pick(NARR.timeout):pick(NARR.wrong),'hot');else{say(`${p.n} ${i<0?'froze':'missed'}. The question passes.`,'');bark(p,i<0?'life':'wrong')}}
     if(q.opts.length-q.elim.length<=1)q.solved=true;
   }
-  if(G.certNote){G.certNote=0;say('CERT PETITION GRANTED. You survive with 1 life.','cyan')}
+  if(G.cnote){say(G.cnote,'cyan');G.cnote=''}
   G.turnsLeft--;if(G.turnsLeft<=0&&!q.solved)q.solved=true;
   G.phase='reveal';G.wait=isMe(p)&&!G.spectate&&!G.net;G.phaseT=(q.solved?(G.net?3600:3200):(G.net?1900:1500))/spd()*(p.cpu?Math.max(.45,crowdF()):1);
   if(isMe(p)&&!ok)shake();
@@ -1081,8 +1081,8 @@ cap2:['X..X..X..X..','XX.XX.XX.XX.','XXXXXXXXXXX.','............','.XXXXXXXXXX.'
 });
 // profile pictures earned by finishing each semester
 ICONS.push('cap1','cap2');
-const CICON={cap1:{name:'Prefecture Graduate (finish the fall semester of the campaign)',icon:'cap1',sem:1},cap2:{name:'Spring Laureate (finish the spring semester of the campaign)',icon:'cap2',sem:2}};
-const campIconOK=n=>!!(CICON[n]&&S.camp&&S.camp['won'+CICON[n].sem]);
+const CICON={cap1:{name:'Prefecture Graduate (finish the fall semester in Civ Pro Prefecture)',icon:'cap1',sem:1,reg:'cp'},cap2:{name:'Spring Laureate (finish the spring semester in Civ Pro Prefecture)',icon:'cap2',sem:2,reg:'cp'}};
+const campIconOK=n=>{const k=CICON[n];if(!k||!REGIONS[k.reg])return false;const st=S[REGIONS[k.reg].key];return !!(st&&st['won'+k.sem])};
 
 /* ---------- campaign music ---------- */
 Object.assign(BASS,{boss:[[0,0,1],[2,12,1],[3,0,1],[4,0,1],[6,12,1],[7,0,1],[8,0,1],[10,12,1],[11,7,1],[12,0,1],[14,12,1],[15,10,1]],
@@ -1164,7 +1164,7 @@ const CTOWN=(()=>{const W=48,H=34,m=Array.from({length:H},()=>Array(W).fill('.')
 const grid=rows=>rows.map(r=>[...r]);
 const CMAPS={
  town:{t:CTOWN,mus:'town',name:'CIV PRO PREFECTURE'},
- bakery:{mus:'inside',name:'THE BAKERY',door:[[38,20]],t:grid([
+ bakery:{kind:'in',mus:'inside',name:'THE BAKERY',door:[[38,20]],t:grid([
   'KKKQKKKKKKQKKK',
   'KOOOkkkkkkkkzK',
   'KkkkkkkkkkkkkK',
@@ -1175,7 +1175,7 @@ const CMAPS={
   'KkkkkkrrrkkkzK',
   'KzkkkkkkkkkkkK',
   'KKKKKKXKKKKKKK'])},
- library:{mus:'inside',name:'THE LIBRARY',door:[[6,10]],t:grid([
+ library:{kind:'in',mus:'inside',name:'THE LIBRARY',door:[[6,10]],t:grid([
   'KKKQKKKKKKKKQKKK',
   'KqqqqqkkkkqqqqqK',
   'KkkkkkkkkkkkkkkK',
@@ -1187,7 +1187,7 @@ const CMAPS={
   'KzkkkkkkkkkkCCkK',
   'KkkkkkkkkkkkkkkK',
   'KKKKKKKXKKKKKKKK'])},
- court:{mus:'inside',name:'THE COURTHOUSE',door:[[38,10]],t:grid([
+ court:{kind:'in',mus:'inside',name:'THE COURTHOUSE',door:[[38,10]],t:grid([
   'KKKKKKKllKKKKKKK',
   'KkkkkJJkJJJkkkkK',
   'KkkkkkkkkkkkkkkK',
@@ -1199,7 +1199,7 @@ const CMAPS={
   'KzkkkkkrrkkkkkzK',
   'KkkkkkkrrkkkkkkK',
   'KKKKKKKXXKKKKKKK'])},
- house:{mus:'inside',name:'THE BLUE HOUSE',door:[[5,19]],t:grid([
+ house:{kind:'in',mus:'inside',name:'THE BLUE HOUSE',door:[[5,19]],t:grid([
   'KKQKKKKQKK',
   'KEEkkkkzkK',
   'KkkkkkkkkK',
@@ -1208,7 +1208,7 @@ const CMAPS={
   'KkkkkkkrrK',
   'KvkkkkkkkK',
   'KKKKXKKKKK'])},
- class:{mus:'inside',name:'PROF. PETERSON’S CLASSROOM',door:[[23,5],[24,5]],t:grid([
+ class:{kind:'in',mus:'inside',name:'PROF. PETERSON’S CLASSROOM',door:[[23,5],[24,5]],t:grid([
   'KKKeeeeeeeeeeKKK',
   'KkkkkkkjkkkkkkkK',
   'KkkkkkkkkkkkkkkK',
@@ -1222,13 +1222,14 @@ const CMAPS={
   'KkkkkkkkkkkkkkkK',
   'KKKKKKKXXKKKKKKK'])},
 };
-const CDOORS={};Object.entries(CMAPS).forEach(([k,M])=>{(M.door||[]).forEach(([x,y])=>CDOORS[x+','+y]=k)});
-const cMapT=()=>CMAPS[cS().map].t;
+function cDoors(){const G2=REG();if(!G2.doors){G2.doors={};Object.entries(G2.maps).forEach(([k,M])=>{(M.door||[]).forEach(([x,y])=>G2.doors[x+','+y]=k)})}return G2.doors}
+const cMapM=()=>REG().maps[cS().map];
+const cMapT=()=>cMapM().t;
 
 /* ---------- people ---------- */
 // map/x/y = home tile. route = patrol waypoints (they walk with a little step). sem = only in that semester.
 const CNPC=[
- {id:'syl',n:'THE SYLLABUS',s:'paper',c:'#ffffff',map:'town',x:26,y:18,v:520},
+ {id:'syl',n:'THE SYLLABUS',s:'paper',c:'#ffffff',map:'town',x:26,y:18,v:520,guide:1},
  {id:'goose',n:'GOOSE McGILLICUDDY',s:'goose',c:'#f4f4f4',map:'town',x:18,y:14,v:300,route:[[18,14],[21,14],[21,18],[18,18]],spd:380},
  {id:'baker',n:'BRIOCHE THE BAKER',s:'chef',c:'#ffd9a0',map:'bakery',x:5,y:2,v:420,route:[[2,2],[9,2]],spd:420,pause:1500},
  {id:'snail',n:'SHELBY',s:'snail',c:'#c8a2ff',map:'town',x:10,y:18,v:180,route:[[10,18],[12,18]],spd:1600,pause:2600},
@@ -1252,7 +1253,7 @@ const CNPC=[
  {id:'rocker',n:'SMOOTH RICK',s:'rocker',c:'#ff9e5e',map:'town',x:26,y:22,v:200,idle:[['* Yeah. I play smooth rock covers of the Federal Rules.','* This one’s Rule 56. There’s no genuine dispute that it rules.'],['* My band is called THE MATERIAL FACTS.','* We’re very relevant. Proportional, even.']]},
  {id:'ven1',n:'OUTLINE VENDOR',s:'chef',c:'#ffb3c7',map:'town',x:11,y:21,v:470,idle:[['* Outlines! Fresh outlines!','* Only slightly highlighted. Entirely highlighted.']]},
  {id:'ven2',n:'CASEBOOK VENDOR',s:'chef',c:'#b3e0ff',map:'town',x:17,y:21,v:430,idle:[['* Used casebooks! Previous owner wrote “why” in every margin.','* It’s a feature.']]},
- {id:'master',n:'STATIONMASTER',s:'person',c:'#6a8cff',map:'town',x:44,y:14,v:240,idle:[['* The 5:15 to the Court of Appeals is delayed.','* It is always delayed. It is waiting for a final judgment.']]},
+ {id:'master',n:'STATIONMASTER',s:'person',c:'#6a8cff',map:'town',x:44,y:14,v:240,train:'torts'},
  {id:'judge',n:'THE JUDGE',s:'person',c:'#7a7a8a',map:'court',x:7,y:1,v:160,idle:[['* (The judge is asleep.)','* (A note on the bench reads: DENIED.)'],['* ...sustained... zzz...']]},
  {id:'room',n:'YOUR ROOMMATE',s:'kid1',c:'#ffd84a',map:'house',x:2,y:1,v:600,idle:[['* zzz... motion... to... snooze...','* (Your roommate is asleep on a casebook. It is the softest thing they own.)'],['* five more minutes... that’s a reasonable time...']]},
 ];
@@ -1549,54 +1550,80 @@ const CQUESTS2=[
  after:['* I got promoted to Chief Deputy Clerk. I still chase my tail. Professionally.']},
 ];
 
+/* ---------- regions ---------- */
+const P_='peterson';
+const REGIONS={cp:{key:'camp',name:'CIV PRO PREFECTURE',course:'CIVIL PROCEDURE',world:'cp',maps:CMAPS,npcs:CNPC,q:[CQUESTS,CQUESTS2],stu:[CSTU,CSTU2],
+ prof:'peterson',start:['town',24,18,'up'],arrive:['town',43,16,'right'],out:'town',final:'class',finalReward:'redpen',mus:{duel:'duel',dungeon:'dungeon',boss:'boss'},
+ block:{npc:'troll',q:'troll',at:[23,27],to:[25,26]},acc:[.89,.93],hint3:['coffee','* (Somewhere near the plaza, a vending machine hums meaningfully.)'],
+ lockedNote:'\u201cFINALS OPEN WHEN THE TOWN\u2019S PROCEDURE IS IN ORDER.\u201d',
+ intro:[[null,'* You wake up on a bench.'],[null,'* The air smells like toner and anxiety.'],[null,'* Welcome to CIV PRO PREFECTURE.'],[null,'* It is the night before finals. It has been the night before finals for a while now.'],['syl','* Psst. Over here. I\u2019m THE SYLLABUS. Talk to me.']],
+ guide:n=>[[n.id,'* I am THE SYLLABUS. I contain everything. Nobody reads me.'],[n.id,`* ${SEM()===2?'Spring':'Fall'} semester. Problems solved: ${cDoneN()} of 10.${cDoneN()>=10?' The LAW SCHOOL is open. Go north. Good luck. I mean it.':' Look for townsfolk with a ! over their heads. Some are indoors. Walk into a door to go in.'}`],[n.id,`* Students with a sword over their heads want to duel. Winning gets you items.${SEM()===2?' A new 3L is lurking at the COURTHOUSE.':''}`],[n.id,`* Press X or tap \u2630 to equip up to ${cSlots()} items. The train at the station goes to the TORTS TUNDRA.`]],
+ profNotYet:'* The exam isn\u2019t ready yet. Neither, I suspect, are you.',profLater:'* Office hours are always open. Well. Tuesdays.',
+ profAgain:[[P_,'* Back again? The exam is the same. You are not.'],[P_,'* Care to retake it? For fun. Nothing is on the line. Except pride.']],
+ profPre:[[[P_,'* Ah. You made it.'],[P_,'* The whole town says you\u2019ve been... helpful. Goose included.'],[P_,'* Your classmates are here too. Everyone sits the same final.'],[P_,'* When I get on a roll, I review my notes. It does wonders for my stamina.'],[null,'* (PROF. PETERSON heals 1 life for each right answer during a streak, up to 5.)'],[P_,'* And like you, a good streak shields me from my own mistakes.'],[null,'* (His streak gives him a shield, just like yours.)'],[P_,'* Shall we begin?']],
+   [[P_,'* Spring term. The questions are harder. So am I.'],[P_,'* Four classmates this time. And I\u2019ve been reviewing my notes all semester.'],[null,'* (PROF. PETERSON: heals on streaks, shields on streaks, and answers sharper than ever.)'],[P_,'* Ready?']]],
+ dungeonLines:[[null,'* The lights flicker.'],[null,'* The desks sink into the floor. The walls turn to stone.'],[null,'* The chalkboard writes by itself: FINAL EXAM.'],[P_,'* Pencils down.'],[P_,'* Hearts up.']],
+ finalLose:[[P_,'* Hm. Not this time.'],[P_,'* Office hours are Tuesdays. Bring questions. Bring a better strategy.'],[null,'* (Try different items. Talk to the professor to retake it.)']],
+ retake1:[[P_,'* Still sharp. Good.'],[null,'* You passed the fall final again.']],retake2:[[P_,'* Even in the spring. Impressive.'],[null,'* You passed the spring final again.']],
+ win1:got=>[[P_,'* ...'],[P_,'* Well.'],[P_,'* That was a well-pleaded performance.'],[P_,'* Subject matter jurisdiction first. Always. You remembered.'],[null,'* You passed the FALL SEMESTER of CIVIL PROCEDURE.'],[P_,'* Here. You\u2019ve earned this. Use it wisely. Or at least legibly.'],...got,[null,'* NEW PROFILE PICTURE UNLOCKED: PREFECTURE GRADUATE.'],[null,'* ...'],[null,'* The bell rings again.'],[P_,'* Oh. Did I not mention? There\u2019s a spring semester.'],[null,'* SPRING SEMESTER has begun.'],[null,'* Everyone in town has new, harder problems. The students want rematches.'],[null,'* A new 3L has been spotted at the COURTHOUSE.'],[null,'* (You can now equip 3 items.)']],
+ win2:[[P_,'* ...'],[P_,'* Two semesters. Twenty problems solved. A whole town, procedurally sound.'],[P_,'* I\u2019m not supposed to have favorite students.'],[P_,'* I have a favorite procedural rule, though. Rule 1. You know why.'],[null,'* \u201c...the just, speedy, and inexpensive determination of every action.\u201d'],[null,'* You passed CIVIL PROCEDURE.'],[null,'* NEW PROFILE PICTURE UNLOCKED: SPRING LAUREATE.'],[null,'* CIV PRO PREFECTURE COMPLETE.'],[null,'* (The train at the station runs to the TORTS TUNDRA. CONTRACTS COAST is still being surveyed.)']]}};
+const RID=()=>S.campR==='torts'&&REGIONS.torts?'torts':'cp';
+const REG=()=>REGIONS[RID()];
+
 /* ---------- state ---------- */
-const CM={say:null,ask:null,menu:null,held:[],raf:0,last:0,mov:null,mus:'town',mi:0,np:{},fade:null,dungeon:false,fx:0,bump:0};
+const CM={say:null,ask:null,menu:null,held:[],raf:0,last:0,mov:null,mus:'town',mi:0,npr:{},fade:null,dungeon:false,fx:0,bump:0};
 function cS(){
-  if(!S.camp)S.camp={};const c=S.camp,fresh=c.v!==2;
-  const d={x:24,y:18,dir:'up',map:'town',qs:{},qs2:{},items:[],eq:[],beat:{},beat2:{},vend:0,intro:0,won1:0,won2:0,sem:1,talk:{},v:2};
+  const RG=REG();if(!S[RG.key])S[RG.key]={};const c=S[RG.key],fresh=c.v!==2;
+  const d={x:RG.start[1],y:RG.start[2],dir:RG.start[3],map:RG.start[0],qs:{},qs2:{},beat:{},beat2:{},vend:0,intro:0,won1:0,won2:0,sem:1,talk:{},v:2};
   for(const k in d)if(c[k]==null)c[k]=JSON.parse(JSON.stringify(d[k]));
   // saves from build 19 used a smaller map and a single "won" flag
-  if(fresh||!CMAPS[c.map]){c.v=2;c.map='town';c.x=24;c.y=18;c.dir='up'}
-  if(c.won&&!c.won1){c.won1=1;c.sem=2;c.migrated=1;if(!c.items.includes('redpen'))c.items.push('redpen')}
+  if(fresh||!RG.maps[c.map]){c.v=2;c.map=RG.start[0];c.x=RG.start[1];c.y=RG.start[2];c.dir=RG.start[3]}
+  if(RG.key==='camp'&&c.won&&!c.won1){c.won1=1;c.sem=2;c.migrated=1;const b=cBag();if(!b.items.includes('redpen'))b.items.push('redpen')}
   delete c.won;return c}
+// one bag of items shared by every region
+function cBag(){if(!S.camp)S.camp={};const b=S.camp;if(!b.items)b.items=[];if(!b.eq)b.eq=[];return b}
+const NP=()=>CM.npr[RID()]||(CM.npr[RID()]={});
 const SEM=()=>cS().sem===2?2:1;
-const QL=()=>SEM()===2?CQUESTS2:CQUESTS;
+const QL=()=>REG().q[SEM()-1];
 const QK=()=>SEM()===2?'qs2':'qs';
 const BK=()=>SEM()===2?'beat2':'beat';
-const STU=()=>SEM()===2?CSTU2:CSTU;
+const STU=()=>REG().stu[SEM()-1];
 const cQ=id=>QL().find(q=>q.id===id);
 const cDone=id=>(cS()[QK()][id]||0)>=cQ(id).steps.length;
 const cDoneN=()=>QL().filter(q=>cDone(q.id)).length;
-const cHas=it=>cS().items.includes(it);
-const cEq=it=>cS().eq.includes(it);
-const cSlots=()=>SEM()===2?3:2;
-function cGive(it){const c=cS();if(c.items.includes(it))return [];c.items.push(it);let auto=false;if(c.eq.length<cSlots()){c.eq.push(it);auto=true}save();
+const cHas=it=>cBag().items.includes(it);
+const cEq=it=>cBag().eq.includes(it);
+const cSlots=()=>Object.values(REGIONS).some(RG=>S[RG.key]&&S[RG.key].sem===2)?3:2;
+function cGive(it){const c=cBag();if(c.items.includes(it))return [];c.items.push(it);let auto=false;if(c.eq.length<cSlots()){c.eq.push(it);auto=true}save();
   return [[null,`* You got the ${CITEMS[it].n}!`],[null,'* '+CITEMS[it].d],...(auto?[]:[[null,'* (Your hands are full. Swap it in from the bag: X or ☰.)']])]}
 const cHere=n=>n.map===cS().map&&(!n.sem||n.sem===SEM());
-function cNpcInit(){CNPC.forEach(n=>{if(!CM.np[n.id])CM.np[n.id]={x:n.x,y:n.y,wi:0,wait:600+Math.random()*1500,mv:null,dir:'down'}});cTrollFix()}
-function cTrollFix(){const t=CM.np.troll;if(!t)return;const [x,y]=cDone('troll')?[25,26]:[23,27];if(!t.mv){t.x=x;t.y=y}}
-function cNpcAt(x,y){return CNPC.find(n=>{if(!cHere(n))return false;const p=CM.np[n.id];return p&&p.x===x&&p.y===y})}
+function cNpcInit(){REG().npcs.forEach(n=>{if(!NP()[n.id])NP()[n.id]={x:n.x,y:n.y,wi:0,wait:600+Math.random()*1500,mv:null,dir:'down'}});cTrollFix()}
+function cTrollFix(){const B=REG().block;if(!B)return;const t=NP()[B.npc];if(!t)return;const [x,y]=cDone(B.q)?B.to:B.at;if(!t.mv){t.x=x;t.y=y}}
+function cNpcAt(x,y){return REG().npcs.find(n=>{if(!cHere(n))return false;const p=NP()[n.id];return p&&p.x===x&&p.y===y})}
 function cPlayerAt(x,y){const c=cS();return (c.x===x&&c.y===y)||(CM.mov&&CM.mov.x===x&&CM.mov.y===y)}
-function cWalkable(x,y){const T=cMapT();if(y<0||x<0||y>=T.length||x>=T[0].length)return false;return CWALKS.includes(T[y][x])}
+function cWalkable(x,y){const T=cMapT();if(y<0||x<0||y>=T.length||x>=T[0].length)return false;return (cMapM().walk||CWALKS).includes(T[y][x])}
 function cWalk(x,y){return cWalkable(x,y)&&!cNpcAt(x,y)}
-function cMark(n){if(n.stu)return cS()[BK()][n.stu]?'':'duel';if(n.id==='peterson')return cDoneN()>=10&&!cS()['won'+SEM()]?'duel':'';return cStepFor(n.id)?'!':''}
+function cMark(n){if(n.stu)return cS()[BK()][n.stu]?'':'duel';if(n.id===REG().prof)return cDoneN()>=10&&!cS()['won'+SEM()]?'duel':'';return cStepFor(n.id)?'!':''}
 function cStepFor(id){for(const q of QL()){const i=cS()[QK()][q.id]||0;if(i<q.steps.length&&q.steps[i].npc===id)return {q,i}}return null}
 
 /* ---------- entering, leaving, moving between maps ---------- */
-function campEnter(){const c=cS();CM.say=CM.ask=CM.menu=null;CM.held=[];CM.mov=null;CM.fade=null;CM.dungeon=false;cNpcInit();CM.mus=CMAPS[c.map].mus;V='camp';render();
-  if(!c.intro){c.intro=1;save();campSay([[null,'* You wake up on a bench.'],[null,'* The air smells like toner and anxiety.'],[null,'* Welcome to CIV PRO PREFECTURE.'],[null,'* It is the night before finals. It has been the night before finals for a while now.'],['syl','* Psst. Over here. I’m THE SYLLABUS. Talk to me.']])}
-  else if(c.migrated){delete c.migrated;save();campSay([[null,'* The town has grown since you last visited.'],[null,'* You passed the fall final, so PETERSON’S RED PEN is in your bag.'],[null,'* SPRING SEMESTER is underway. Everyone has new, harder problems.']])}}
+function campEnter(){const c=cS();CM.say=CM.ask=CM.menu=null;CM.held=[];CM.mov=null;CM.fade=null;CM.dungeon=false;cNpcInit();CM.mus=cMapM().mus;V='camp';render();
+  if(!c.intro){c.intro=1;save();campSay(REG().intro)}
+  else if(c.migrated){delete c.migrated;save();campSay([[null,'* The town has grown since you last visited.'],[null,'* You passed the fall final, so PETERSON\u2019S RED PEN is in your bag.'],[null,'* SPRING SEMESTER is underway. Everyone has new, harder problems.']])}}
+// ride the train to another region
+function campTravel(rid){CM.fade={t:0,d:900,mid:()=>{S.campR=rid;cNpcInit();const c=cS(),a=REG().arrive;c.map=a[0];c.x=a[1];c.y=a[2];c.dir=a[3];CM.mov=null;CM.dungeon=false;cTrollFix();CM.mus=cMapM().mus;save();musSync();campRender()},
+  after:()=>{const c=cS();if(!c.intro){c.intro=1;save();campSay(REG().intro)}}}}
 function campLeave(){save();CM.say=CM.ask=CM.menu=null;if(CM.raf){cancelAnimationFrame(CM.raf);CM.raf=0}go('title')}
-function campWarp(map,x,y,dir){CM.fade={t:0,d:420,mid:()=>{const c=cS();c.map=map;c.x=x;c.y=y;c.dir=dir;CM.mov=null;cTrollFix();CM.mus=CMAPS[map].mus;if(map!=='class')CM.dungeon=false;musSync();campHUD();save()}}}
-function campEnterDoor(x,y){const k=CDOORS[x+','+y];if(!k)return false;
-  if(k==='class'&&cDoneN()<10&&!cS()['won'+SEM()]){if(performance.now()-CM.bump>900){CM.bump=performance.now();campSay([[null,'* The door to the LAW SCHOOL is locked.'],[null,`* A note: “FINALS OPEN WHEN THE TOWN’S PROCEDURE IS IN ORDER.” (${cDoneN()}/10)`]])}return true}
-  const T=CMAPS[k].t,ex=T[T.length-1].indexOf('X');campWarp(k,ex,T.length-2,'up');return true}
-function campExit(){const c=cS(),M=CMAPS[c.map],[dx,dy]=M.door[0];campWarp('town',dx,dy+1,'down')}
+function campWarp(map,x,y,dir){CM.fade={t:0,d:420,mid:()=>{const c=cS();c.map=map;c.x=x;c.y=y;c.dir=dir;CM.mov=null;cTrollFix();CM.mus=REG().maps[map].mus;if(map!==REG().final)CM.dungeon=false;musSync();campHUD();save()}}}
+function campEnterDoor(x,y){const k=cDoors()[x+','+y];if(!k)return false;
+  if(k===REG().final&&cDoneN()<10&&!cS()['won'+SEM()]){if(performance.now()-CM.bump>900){CM.bump=performance.now();campSay([[null,'* The door to the LAW SCHOOL is locked.'],[null,`* A note: ${REG().lockedNote} (${cDoneN()}/10)`]])}return true}
+  const T=REG().maps[k].t,ex=T[T.length-1].indexOf('X');campWarp(k,ex,T.length-2,'up');return true}
+function campExit(){const c=cS(),M=cMapM(),[dx,dy]=M.door[0];campWarp(REG().out,dx,dy+1,'down')}
 
 /* ---------- view ---------- */
-function campHUD(){const pr=document.getElementById('cprob');if(pr)pr.textContent=cDoneN();const pl=document.getElementById('cplace');if(pl)pl.textContent=CMAPS[cS().map].name;const sm=document.getElementById('csem');if(sm)sm.textContent=SEM()===2?'SPRING SEMESTER':'FALL SEMESTER'}
+function campHUD(){const pr=document.getElementById('cprob');if(pr)pr.textContent=cDoneN();const pl=document.getElementById('cplace');if(pl)pl.textContent=cMapM().name;const sm=document.getElementById('csem');if(sm)sm.textContent=SEM()===2?'SPRING SEMESTER':'FALL SEMESTER'}
 function campRender(){
-  app.innerHTML=`<div class="camp"><div class="chud"><span><b id="cplace">${esc(CMAPS[cS().map].name)}</b> <span class="dim">· <span id="csem">${SEM()===2?'SPRING SEMESTER':'FALL SEMESTER'}</span> · campaign (experimental)</span></span><span>PROBLEMS <b id="cprob" style="color:inherit">${cDoneN()}</b>/10 · <button class="lnk" data-act="camp" data-v="menu" id="cmenu">☰ bag &amp; quests</button> · <button class="lnk" data-act="camp" data-v="leave" id="cleave">save &amp; quit</button></span></div>
+  app.innerHTML=`<div class="camp"><div class="chud"><span><b id="cplace">${esc(cMapM().name)}</b> <span class="dim">· <span id="csem">${SEM()===2?'SPRING SEMESTER':'FALL SEMESTER'}</span> · campaign (experimental)</span></span><span>PROBLEMS <b id="cprob" style="color:inherit">${cDoneN()}</b>/10 · <button class="lnk" data-act="camp" data-v="menu" id="cmenu">☰ bag &amp; quests</button> · <button class="lnk" data-act="camp" data-v="leave" id="cleave">save &amp; quit</button></span></div>
   <div class="cwrap"><canvas id="cv" width="${CVW*CT}" height="${CVH*CT}" aria-label="Town map. Use arrow keys or WASD to walk, Z or Enter to talk."></canvas><div id="cov"></div></div>
   <div class="cpad" aria-label="Touch controls"><div class="dpad"><button data-dir="up" aria-label="up">▲</button><button data-dir="left" aria-label="left">◀</button><button data-dir="right" aria-label="right">▶</button><button data-dir="down" aria-label="down">▼</button></div><div class="ab"><button data-act="camp" data-v="b" class="bbtn" aria-label="menu">B</button><button data-act="camp" data-v="a" class="abtn" aria-label="talk">A</button></div></div>
   <p class="dim ckeys">Move <kbd>↑↓←→</kbd>/<kbd>WASD</kbd> · talk <kbd>Z</kbd>/<kbd>Enter</kbd> · bag <kbd>X</kbd>/<kbd>Esc</kbd> · walk into doors to go inside</p></div>`;
@@ -1613,8 +1640,8 @@ function campOv(){const el=document.getElementById('cov');if(!el)return;campHUD(
   if(CM.menu){el.innerHTML=campMenuV();return}
   el.innerHTML='';
 }
-function campMenuV(){const c=cS(),tab=CM.menu.tab,items=Object.keys(CITEMS).filter(cHas),left=Object.keys(CITEMS).length-items.length;
-  const body=tab==='bag'?(items.length?items.map((k,i)=>{const it=CITEMS[k],on=cEq(k);return `<div class="citem ${CM.mi===i?'sel':''}"><span class="cic">${spr(it.s,it.c)}</span><div><b>${esc(it.n)}</b>${on?' <span class="good">· equipped</span>':''}<div class="dim">${esc(it.d)}</div></div><button class="btn ${on?'':'gold'}" data-act="camp" data-v="eq:${k}" id="ceq-${k}">${on?'UNEQUIP':'EQUIP'}</button></div>`}).join(''):'<p class="dim">* Your bag is empty. It is a very nice bag, though.</p>')+`<p class="dim" style="margin:8px 0 0">Equipped ${c.eq.length}/${cSlots()}${SEM()===1?' (3 slots in the spring)':''}. Items only work in campaign matches. ${left} item${left===1?'':'s'} still out there.</p>`
+function campMenuV(){const c=cS(),bag=cBag(),tab=CM.menu.tab,items=Object.keys(CITEMS).filter(cHas),left=Object.keys(CITEMS).length-items.length;
+  const body=tab==='bag'?(items.length?items.map((k,i)=>{const it=CITEMS[k],on=cEq(k);return `<div class="citem ${CM.mi===i?'sel':''}"><span class="cic">${spr(it.s,it.c)}</span><div><b>${esc(it.n)}</b>${on?' <span class="good">· equipped</span>':''}<div class="dim">${esc(it.d)}</div></div><button class="btn ${on?'':'gold'}" data-act="camp" data-v="eq:${k}" id="ceq-${k}">${on?'UNEQUIP':'EQUIP'}</button></div>`}).join(''):'<p class="dim">* Your bag is empty. It is a very nice bag, though.</p>')+`<p class="dim" style="margin:8px 0 0">Equipped ${bag.eq.length}/${cSlots()}${cSlots()<3?' (3 slots once you reach any spring semester)':''}. Items only work in campaign matches. ${left} item${left===1?'':'s'} still out there.</p>`
    :QL().map(q=>{const i=c[QK()][q.id]||0,d=i>=q.steps.length,n=CNPCBY[q.steps[Math.min(i,q.steps.length-1)].npc];return `<div class="cql ${d?'done':''}"><b>${d?'✔':i?'…':'·'} ${esc(q.name)}</b> <span class="dim">${d?'solved':i?`step ${i+1}/3 · talk to ${esc(n.n)}`:'not started'}</span></div>`}).join('')
      +`<div class="cql"><b>${Object.keys(STU()).every(k=>c[BK()][k])?'✔':'·'} Student duels</b> <span class="dim">${Object.keys(STU()).filter(k=>c[BK()][k]).length}/${Object.keys(STU()).length} won</span></div><div class="cql"><b>${c['won'+SEM()]?'✔':'·'} ${SEM()===2?'Spring':'Fall'} final</b> <span class="dim">${cDoneN()>=10?(c['won'+SEM()]?'passed':'the LAW SCHOOL is open'):'opens when all 10 problems are solved'}</span></div>`;
   return `<div class="cmenu"><div class="row" style="margin:0 0 10px"><button class="btn ${tab==='bag'?'gold':''}" data-act="camp" data-v="tab:bag" id="ctab-bag">BAG</button><button class="btn ${tab==='q'?'gold':''}" data-act="camp" data-v="tab:q" id="ctab-q">QUESTS</button><button class="btn" data-act="camp" data-v="close" id="cclose">CLOSE ✕</button></div>${body}</div>`}
@@ -1635,12 +1662,14 @@ function campPick(i){const A=CM.ask;if(!A)return;CM.ask=null;campOv();A.cb(i,A.o
 /* ---------- talking ---------- */
 const nar=t=>[null,t];
 function campTalk(n){
-  const c=cS();c.talk[n.id]=(c.talk[n.id]||0)+1;const p=CM.np[n.id];
+  const c=cS();c.talk[n.id]=(c.talk[n.id]||0)+1;const p=NP()[n.id];
   // turn to face the player, Pokemon style
   if(p&&!p.mv){if(c.x<p.x)p.dir='left';else if(c.x>p.x)p.dir='right'}
   if(n.stu)return campStudent(n);
-  if(n.id==='peterson')return campProf();
-  if(n.id==='syl')return campSay([[n.id,'* I am THE SYLLABUS. I contain everything. Nobody reads me.'],[n.id,`* ${SEM()===2?'Spring':'Fall'} semester. Problems solved: ${cDoneN()} of 10.${cDoneN()>=10?' The LAW SCHOOL is open. Go north. Good luck. I mean it.':' Look for townsfolk with a ! over their heads. Some are indoors. Walk into a door to go in.'}`],[n.id,`* Students with a sword over their heads want to duel. Winning gets you items.${SEM()===2?' A new 3L is lurking at the COURTHOUSE.':''}`],[n.id,`* Press X or tap ☰ to equip up to ${cSlots()} items. They only work in matches here.`]]);
+  if(n.id===REG().prof)return campProf();
+  if(n.train)return campTrain(n);
+  if(n.talk)return n.talk(n);
+  if(n.guide)return campSay(REG().guide(n));
   if(n.id==='vend')return campVend(n);
   if(n.idle){const L=n.idle[(c.talk[n.id]-1)%n.idle.length];return campSay(L.map(t=>[n.id,t]))}
   const st=cStepFor(n.id);
@@ -1655,9 +1684,9 @@ function campStep(q,i){const st=q.steps[i],n=st.npc;
     const [qq,a,...rest]=st.q,e=rest[3],opts=shuf([{t:a,ok:true},{t:rest[0]},{t:rest[1]},{t:rest[2]}]);
     campAsk(qq,`${q.name} · ${i+1}/${q.steps.length}${SEM()===2?' · spring':''}`,opts,(k,o)=>{
       S.answered++;
-      if(o.ok){S.right++;cS()[QK()][q.id]=i+1;save();const fin=i+1>=q.steps.length;if(q.id==='troll')cTrollFix();
-        const tail=fin?[nar('* QUEST COMPLETE: '+q.name.toUpperCase()+'.'),...(cDoneN()===10?[nar('* Somewhere up north, a heavy door unlocks.'),nar('* The LAW SCHOOL is open. Finals await.')]:cDoneN()===3&&!cHas('coffee')?[nar('* (Somewhere near the plaza, a vending machine hums meaningfully.)')]:[])]:[];
-        campSay([nar('* (Correct.) '+e),...st.ok.map(t=>[n,t]),...tail],()=>{if(q.id==='troll'&&fin)cTrollFix()});
+      if(o.ok){S.right++;cS()[QK()][q.id]=i+1;save();const fin=i+1>=q.steps.length;if(REG().block&&q.id===REG().block.q)cTrollFix();
+        const tail=fin?[nar('* QUEST COMPLETE: '+q.name.toUpperCase()+'.'),...(cDoneN()===10?[nar('* Somewhere up north, a heavy door unlocks.'),nar('* The LAW SCHOOL is open. Finals await.')]:cDoneN()===3&&REG().hint3&&!cHas(REG().hint3[0])?[nar(REG().hint3[1])]:[])]:[];
+        campSay([nar('* (Correct.) '+e),...st.ok.map(t=>[n,t]),...tail],()=>{if(fin)cTrollFix()});
       }else campSay([...st.no.map(t=>[n,t]),nar('* (Not quite. Talk to them again to try once more.)')]);
     })});
 }
@@ -1672,17 +1701,18 @@ function campStudent(n){const k=n.stu,D=STU()[k],c=cS();
   if(c[BK()][k])return campSay(D.after);
   campSay(D.pre,()=>campAsk(`${D.n} wants to duel.`,'',[{t:'DUEL'},{t:'NOT NOW'}],i=>{if(i===0)campMatch(k);else campSay([[n.id,'* oh. okay. i’ll be here. studying. forever.']])}));
 }
-function campProf(){const c=cS(),P='peterson',sem=SEM(),won=c['won'+sem];
-  if(cDoneN()<10&&!won)return campSay([[P,'* The exam isn’t ready yet. Neither, I suspect, are you.']]);
-  const pre=won?[[P,'* Back again? The exam is the same. You are not.'],[P,'* Care to retake it? For fun. Nothing is on the line. Except pride.']]
-   :sem===1?[[P,'* Ah. You made it.'],[P,'* The whole town says you’ve been... helpful. Goose included.'],[P,'* Your classmates are here too. Everyone sits the same final.'],[P,'* When I get on a roll, I review my notes. It does wonders for my stamina.'],nar('* (PROF. PETERSON heals 1 life for each right answer during a streak, up to 5.)'),[P,'* And like you, a good streak shields me from my own mistakes.'],nar('* (His streak gives him a shield, just like yours.)'),[P,'* Shall we begin?']]
-   :[[P,'* Spring term. The questions are harder. So am I.'],[P,'* Four classmates this time. And I’ve been reviewing my notes all semester.'],nar('* (PROF. PETERSON: heals on streaks, shields on streaks, and answers sharper than ever.)'),[P,'* Ready?']];
-  campSay(pre,()=>campAsk('Take the final?','',[{t:won?'RETAKE THE FINAL':'TAKE THE FINAL'},{t:'NOT YET'}],i=>{if(i!==0)return campSay([[P,'* Office hours are always open. Well. Tuesdays.']]);campDungeon()}));
+function campTrain(n){const to=n.train,dest=REGIONS[to];if(!dest)return campSay([[n.id,'* The line is closed for snow.']]);
+  campSay([[n.id,`* All aboard for the ${dest.name}!`],[n.id,'* The ride is free. Law students have suffered enough.']],()=>campAsk('Ride the train?','',[{t:`RIDE TO ${dest.name}`},{t:'STAY HERE'}],i=>{if(i===0)campTravel(to);else campSay([[n.id,'* The train will wait. It is very patient. Like a statute of repose.']])}))}
+function campProf(){const RG=REG(),c=cS(),P=RG.prof,sem=SEM(),won=c['won'+sem];
+  if(cDoneN()<10&&!won)return campSay([[P,RG.profNotYet]]);
+  const pre=won?RG.profAgain:RG.profPre[sem-1];
+  campSay(pre,()=>campAsk('Take the final?','',[{t:won?'RETAKE THE FINAL':'TAKE THE FINAL'},{t:'NOT YET'}],i=>{if(i!==0)return campSay([[P,RG.profLater]]);campDungeon()}));
 }
 // the classroom becomes a dungeon
-function campDungeon(){const P='peterson';CM.dungeon=true;CM.fx=1;CM.mus='dungeon';musSync();
-  setTimeout(()=>campSay([nar('* The lights flicker.'),nar('* The desks sink into the floor. The walls turn to stone.'),nar('* The chalkboard writes by itself: FINAL EXAM.'),[P,'* Pencils down.'],[P,'* Hearts up.']],()=>campMatch('final')),900)}
+function campDungeon(){CM.dungeon=true;CM.fx=1;CM.mus=REG().mus.dungeon;musSync();
+  setTimeout(()=>campSay(REG().dungeonLines,()=>campMatch('final')),900)}
 function campTile(x,y){const c=cS(),T=cMapT(),t=T[y][x];
+  if(REG().tile){const r=REG().tile(x,y,t,c.map);if(r!==undefined)return r}
   const SIGN={'town:21,7':['* LAW SCHOOL. FINALS IN PROGRESS SINCE TIME BEGAN.'],'town:8,11':['* LIBRARY. SILENCE IS NOT A WAIVER.'],'town:36,11':['* COURTHOUSE. ALL RISE. ALL SIT. ALL RISE AGAIN.'],'town:37,21':['* BAKERY. NOW SERVING: CROISSANTS OF NOTICE.'],'town:43,15':['* PREFECTURE STATION. NEXT TRAIN: WHEN THE CASE IS RIPE.'],'town:22,26':['* BRIDGE MAINTAINED BY A TROLL. ALL TOLLS FINAL.','* NO REFUNDS. NO APPEALS.'],'town:18,30':['* PREFECTURE GRAVEYARD.','* RESTING PLACE OF CLAIMS THAT RAN OUT OF TIME.']};
   if(t==='S'){const m=SIGN[c.map+':'+x+','+y]||['* CIV PRO PREFECTURE. POP.: SEVERAL PARTIES, SOME INDISPENSABLE.'];return campSay(m.map(nar))}
   if(t==='D')return campEnterDoor(x,y);
@@ -1690,35 +1720,30 @@ function campTile(x,y){const c=cS(),T=cMapT(),t=T[y][x];
   const F={f:['* A fountain. People throw coins in and wish for a curve.'],'~':['* The water moves at a reasonable speed.'],g:['* HERE LIES A CLAIM. IT WAITED TOO LONG.','* HERE LIES A COUNTERCLAIM. IT WAS COMPULSORY. NOBODY BROUGHT IT.','* HERE LIES THE “NO SET OF FACTS” TEST. 1957–2007.'][(x+y)%3],
    x:['* A mailbox. Someone mailed an acceptance. It’s already effective. (Wrong class.)'],M:['* A market stall. Everything is priced at $75,000.01.'],c:['* A crate labeled EXHIBIT A.'],n:['* A bench. Perfect for a bench trial.'],p:['* A planter full of reasonable flowers.'],l:['* A flag. It has never been waived.'],t:['* Train tracks. The train is delayed. The train is always delayed.'],
    q:['* A shelf of casebooks. One is titled PENNOYER v. NEFF: THE MUSICAL.','* A row of treatises. Each one weighs as much as a small dog.','* The Federal Rules, in 14 editions. They all say almost the same thing.'][(x*3+y)%3],
-   O:['* An oven. It is warmer than the potato. Barely.'],C:['* A counter. Polished. Possibly sanctioned.'],y:['* A table. Someone carved “IQBAL WAS HERE” into it.'],a:['* A chair. It has been cold-called.'],z:['* A potted plant. It is thriving. It has never taken an exam.'],
+   O:['* An oven. It is warmer than the potato. Barely.'],H:['* A crackling fire. It is the only thing here that isn\u2019t frozen or on trial.'],V:['* A squashy couch. Several outlines have been lost in it.'],C:['* A counter. Polished. Possibly sanctioned.'],y:['* A table. Someone carved “IQBAL WAS HERE” into it.'],a:['* A chair. It has been cold-called.'],z:['* A potted plant. It is thriving. It has never taken an exam.'],
    d:['* A desk. Someone wrote the forum defendant rule on it in tiny letters.'],e:CM.dungeon?['* The chalkboard glows: FINAL EXAM. NO CURVE. (THERE IS A CURVE.)']:['* The chalkboard says: SUBJECT MATTER JURISDICTION FIRST. ALWAYS.'],j:['* The lectern. A potato sits on it, glowing.'],J:['* The judge’s bench. It is very high. Intimidatingly high.'],E:['* A bed. It looks like it hasn’t been slept in since orientation.'],v:['* A bag of rice labeled “EMERGENCY STUDY FOOD.”'],Q:['* A window. Outside, the town is busy being procedural.'],K:[],U:['* Marble columns. They support the courthouse and nothing else.']};
   let m=F[t];if(typeof m==='string')m=[m];if(m&&m.length)return campSay(m.map(nar));
 }
 
 /* ---------- matches ---------- */
 function campMatch(kind){
-  const c=cS(),eq=c.eq,fin=kind==='final',sem=SEM();
-  const me=mkPlayer({...meP(),lives:(fin?5:3)+(eq.includes('outline')?2:0)});
-  if(eq.includes('buckler')){me.ward=1;me.stk=2}
-  if(eq.includes('gavel'))me.gavel=1;
-  if(eq.includes('coffee'))me.tmul=1.5;
-  if(eq.includes('pamph'))me.hint=1;
-  if(eq.includes('redpen'))me.pen=1;
-  if(eq.includes('cards'))me.noTO=1;
-  if(eq.includes('medal'))me.streak=true;
-  if(eq.includes('cert'))me.cert=1;
+  const RG=REG(),c=cS(),eq=cBag().eq.slice(0,cSlots()),fin=kind==='final',sem=SEM();
+  const me=mkPlayer({...meP(),lives:(fin?5:3)+(eq.includes('outline')?2:0)+(eq.includes('helmet')?3:0)});
   const sup=eq.includes('supp')?.1:0;
   const stu=k=>{const D=STU()[k];return mkPlayer({id:'bot_'+k,n:D.n,s:D.s,c:D.c,lives:D.lives,cpu:{n:D.n,s:D.s,c:D.c,acc:Math.max(.3,D.acc-sup),spd:D.spd,right:D.right,wrong:D.wrong,life:D.life,streak:D.streak,elim:D.elim}})};
-  let ps,label,topics=null,mus='duel';
-  if(fin){const pr=CPU.peterson,prof=mkPlayer({id:'bot_peterson',n:pr.n,s:pr.s,c:pr.c,lives:5,cpu:{...pr,acc:Math.max(.3,(sem===2?.93:.89)-sup),spd:sem===2?1.25:1.1,heal:1,shield:1}});
-    const cls=Object.keys(STU()).map(stu);ps=[me,cls[0],prof,...cls.slice(1)];label=sem===2?'SPRING FINAL · PROF. PETERSON':'FALL FINAL · PROF. PETERSON';mus='boss'}
+  let ps,label,topics=null,mus=RG.mus.duel;
+  if(fin){const pr=CPU[RG.prof],prof=mkPlayer({id:'bot_'+RG.prof,n:pr.n,s:pr.s,c:pr.c,lives:5,cpu:{...pr,acc:Math.max(.3,RG.acc[sem-1]-sup),spd:sem===2?1.25:1.1,heal:1,shield:1}});
+    const cls=Object.keys(STU()).map(stu);ps=[me,cls[0],prof,...cls.slice(1)];label=`${sem===2?'SPRING':'FALL'} FINAL · ${pr.n}`;mus=RG.mus.boss}
   else{ps=[me,stu(kind)];label=STU()[kind].label;topics=STU()[kind].topics}
-  G=newG({mode:'story',world:'cp',floor:0,players:ps,camp:{kind,label,topics,mus,boss:fin}});
+  campGear(me,eq);
+  G=newG({mode:'story',world:RG.world,floor:0,players:ps,camp:{kind,label,topics,mus,boss:fin,world:RG.world}});
   CM.say=CM.ask=CM.menu=null;CM.held=[];CM.mov=null;
   V='game';newTopic();render();startLoop();
 }
 // called from startTurn after the timer is set
 function campTurn(p){if(!isMe(p))return;if(p.tmul)G.timer=Math.round(G.timer*p.tmul);
+  if(p.gog&&G.q.hypo)G.timer+=8000;
+  if(p.charm&&p.lives===1){G.timer*=2;const q=G.q,wr=q.opts.map((o,i)=>i).filter(i=>!q.opts[i].ok&&!q.elim.includes(i));if(wr.length>1&&q.charmed!==G.turnId){q.elim.push(pick(wr));q.charmed=G.turnId}}
   if(p.hint){const q=G.q;if(q.hinted!==G.turnId){const wr=q.opts.map((o,i)=>i).filter(i=>!q.opts[i].ok&&!q.elim.includes(i));if(wr.length>1){q.elim.push(pick(wr));q.hinted=G.turnId}}}}
 // called from answer() on a right answer, after the usual narration
 function campRight(p){
@@ -1731,23 +1756,20 @@ function campRight(p){
 }
 // called from answer() on a miss before any life is lost; return true when an item absorbs it
 function campWrong(p,i){
+  const me=G.players.find(isMe);if(me&&me!==p&&me.alive&&me.badge){me.run++;if(me.run>=(me.stk||3)&&!me.streak){me.streak=true;campStreak(me)}}
   if(isMe(p)&&i<0&&p.noTO){p.run=0;p.streak=false;p.redeem=false;say('FLASHCARD DECK: no life lost on a timeout. The question passes.','cyan');G.res='shield';return true}
   return false}
 function campEnd(){
-  const me=G.players.find(isMe),won=!!(me&&me.alive),k=G.camp.kind,c=cS(),sem=SEM();
+  const me=G.players.find(isMe),won=!!(me&&me.alive),k=G.camp.kind,c=cS(),sem=SEM(),RG=REG();
   S.played++;S.bestRun=Math.max(S.bestRun,G.maxRun);
-  G=null;V='camp';CM.dungeon=false;CM.mus=CMAPS[c.map].mus;render();
-  const P='peterson';
+  G=null;V='camp';CM.dungeon=false;CM.mus=cMapM().mus;render();
+  const back=()=>{CM.mus=cMapM().mus;musSync();campHUD()};
   if(k==='final'){
-    if(!won)return campSay([[P,'* Hm. Not this time.'],[P,'* Office hours are Tuesdays. Bring questions. Bring a better strategy.'],nar('* (Try different items. Talk to the professor to retake it.)')]);
+    if(!won)return campSay(RG.finalLose);
     const first=!c['won'+sem];c['won'+sem]=1;save();CM.mus='home';musSync();
-    if(sem===1){
-      if(!first)return campSay([[P,'* Still sharp. Good.'],nar('* You passed the fall final again.')],()=>{CM.mus='inside';musSync()});
-      const got=cGive('redpen');
-      return campSay([[P,'* ...'],[P,'* Well.'],[P,'* That was a well-pleaded performance.'],[P,'* Subject matter jurisdiction first. Always. You remembered.'],nar('* You passed the FALL SEMESTER of CIVIL PROCEDURE.'),[P,'* Here. You’ve earned this. Use it wisely. Or at least legibly.'],...got,nar('* NEW PROFILE PICTURE UNLOCKED: PREFECTURE GRADUATE.'),nar('* ...'),nar('* The bell rings again.'),[P,'* Oh. Did I not mention? There’s a spring semester.'],nar('* SPRING SEMESTER has begun.'),nar('* Everyone in town has new, harder problems. The students want rematches.'),nar('* A new 3L has been spotted at the COURTHOUSE.'),nar('* (You can now equip 3 items.)')],()=>{c.sem=2;save();CM.mus='inside';musSync();campHUD()});
-    }
-    if(!first)return campSay([[P,'* Even in the spring. Impressive.'],nar('* You passed the spring final again.')],()=>{CM.mus='inside';musSync()});
-    return campSay([[P,'* ...'],[P,'* Two semesters. Twenty problems solved. A whole town, procedurally sound.'],[P,'* I’m not supposed to have favorite students.'],[P,'* I have a favorite procedural rule, though. Rule 1. You know why.'],nar('* “...the just, speedy, and inexpensive determination of every action.”'),nar('* You passed CIVIL PROCEDURE.'),nar('* NEW PROFILE PICTURE UNLOCKED: SPRING LAUREATE.'),nar('* CAMPAIGN COMPLETE.'),nar('* (This mode is experimental. TORTS TUNDRA and CONTRACTS COAST are still being surveyed.)'),nar('* You can keep exploring, retake the final, or save & quit.')],()=>{CM.mus='inside';musSync()});
+    if(sem===1){if(!first)return campSay(RG.retake1,back);const got=cGive(RG.finalReward);return campSay(RG.win1(got),()=>{c.sem=2;save();back()})}
+    if(!first)return campSay(RG.retake2,back);
+    return campSay(RG.win2,back);
   }
   const D=STU()[k];
   if(won){const first=!c[BK()][k];c[BK()][k]=1;save();const got=first?cGive(D.item):[];campSay([...D.win,...got])}
@@ -1760,8 +1782,12 @@ const CW=48,CH_=34,CT=16,CVW=20,CVH=15;
 function campFrame(ts){
   if(V!=='camp'){CM.raf=0;return}
   const dt=Math.min(60,ts-CM.last);CM.last=ts;const c=cS();
-  if(CM.fade){CM.fade.t+=dt;if(!CM.fade.done&&CM.fade.t>=CM.fade.d/2){CM.fade.done=1;CM.fade.mid()}if(CM.fade.t>=CM.fade.d)CM.fade=null}
-  if(CM.mov){CM.mov.t+=dt;if(CM.mov.t>=CM.mov.d){c.x=CM.mov.x;c.y=CM.mov.y;CM.mov=null;if(cMapT()[c.y][c.x]==='X'&&c.map!=='town')campExit();else if(Math.random()<.03)save()}}
+  if(CM.fade){CM.fade.t+=dt;if(!CM.fade.done&&CM.fade.t>=CM.fade.d/2){CM.fade.done=1;CM.fade.mid()}if(CM.fade.t>=CM.fade.d){const af=CM.fade.after;CM.fade=null;if(af)af()}}
+  if(CM.mov){CM.mov.t+=dt;if(CM.mov.t>=CM.mov.d){c.x=CM.mov.x;c.y=CM.mov.y;CM.mov=null;const tt=cMapT()[c.y][c.x];
+    if(tt==='X'&&c.map!==REG().out)campExit();
+    // ice: keep sliding until something stops you
+    else if(tt==='i'&&cMapM().slide){const [dx,dy]=CDIR[c.dir];if(cWalk(c.x+dx,c.y+dy))CM.mov={fx:c.x,fy:c.y,x:c.x+dx,y:c.y+dy,t:0,d:85,slide:1}}
+    else if(Math.random()<.03)save()}}
   const busy=CM.say||CM.ask||CM.menu||CM.fade;
   if(!CM.mov&&!busy&&CM.held.length){const d=CM.held[CM.held.length-1],[dx,dy]=CDIR[d];c.dir=d;const nx=c.x+dx,ny=c.y+dy;
     if(cWalk(nx,ny))CM.mov={fx:c.x,fy:c.y,x:nx,y:ny,t:0,d:150};
@@ -1771,7 +1797,7 @@ function campFrame(ts){
   campDraw(ts);CM.raf=requestAnimationFrame(campFrame);
 }
 function cNpcTick(dt){
-  for(const n of CNPC){if(!cHere(n)||(!n.route&&!n.wander))continue;if(n.id==='troll')continue;const p=CM.np[n.id];
+  const BL=REG().block;for(const n of REG().npcs){if(!cHere(n)||(!n.route&&!n.wander))continue;if(BL&&n.id===BL.npc)continue;const p=NP()[n.id];
     if(p.mv){p.mv.t+=dt;if(p.mv.t>=p.mv.d)p.mv=null;continue}
     p.wait-=dt;if(p.wait>0)continue;
     let dx=0,dy=0;
@@ -1788,18 +1814,19 @@ function campDraw(ts){const cv=document.getElementById('cv');if(!cv)return;const
   const camX=MW<=CVW?-(CVW-MW)/2:Math.max(0,Math.min(MW-CVW,px-(CVW-1)/2)),camY=MH<=CVH?-(CVH-MH)/2:Math.max(0,Math.min(MH-CVH,py-(CVH-1)/2));
   g.save();g.fillStyle='#000';g.fillRect(0,0,cv.width,cv.height);
   if(CM.fx>0){const a=CM.fx*4;g.translate(Math.round((Math.random()-.5)*a),Math.round((Math.random()-.5)*a))}
-  const x0=Math.floor(camX),y0=Math.floor(camY),dg=CM.dungeon&&c.map==='class';
-  for(let y=Math.max(0,y0);y<=y0+CVH&&y<MH;y++)for(let x=Math.max(0,x0);x<=x0+CVW&&x<MW;x++){const sx=Math.round((x-camX)*CT),sy=Math.round((y-camY)*CT);if(c.map==='town')cTile(g,T[y][x],x,y,sx,sy,ts);else cTileIn(g,T[y][x],x,y,sx,sy,ts,dg)}
-  const ents=CNPC.filter(cHere).map(n=>{const p=CM.np[n.id];let ex=p.x,ey=p.y,mv=false;if(p.mv){const k=Math.min(1,p.mv.t/p.mv.d);ex=p.mv.fx+(p.x-p.mv.fx)*k;ey=p.mv.fy+(p.y-p.mv.fy)*k;mv=true}return {n,p,x:ex,y:ey,mv}});
+  const x0=Math.floor(camX),y0=Math.floor(camY),dg=CM.dungeon&&c.map===REG().final,MM=cMapM();
+  for(let y=Math.max(0,y0);y<=y0+CVH&&y<MH;y++)for(let x=Math.max(0,x0);x<=x0+CVW&&x<MW;x++){const sx=Math.round((x-camX)*CT),sy=Math.round((y-camY)*CT);if(MM.kind==='tundra')cTileT(g,T[y][x],x,y,sx,sy,ts);else if(MM.kind==='in')cTileIn(g,T[y][x],x,y,sx,sy,ts,dg,MM.th);else cTile(g,T[y][x],x,y,sx,sy,ts)}
+  const ents=REG().npcs.filter(cHere).map(n=>{const p=NP()[n.id];let ex=p.x,ey=p.y,mv=false;if(p.mv){const k=Math.min(1,p.mv.t/p.mv.d);ex=p.mv.fx+(p.x-p.mv.fx)*k;ey=p.mv.fy+(p.y-p.mv.fy)*k;mv=true}return {n,p,x:ex,y:ey,mv}});
   ents.push({me:1,x:px,y:py});ents.sort((a,b)=>a.y-b.y);
   for(const e of ents){const sx=Math.round((e.x-camX)*CT),sy=Math.round((e.y-camY)*CT);if(sx<-16||sy<-20||sx>cv.width||sy>cv.height)continue;
-    if(e.me){const fr=CM.mov?Math.floor(CM.mov.t/75)%2:-1;g.fillStyle='rgba(0,0,0,.35)';g.fillRect(sx+3,sy+13,10,2);cSpr(g,ICONS[prof().icon],COLORS[prof().color],sx,sy-1-(fr===1?1:0),c.dir==='left',fr)}
+    if(e.me){const fr=CM.mov&&!CM.mov.slide?Math.floor(CM.mov.t/75)%2:-1;g.fillStyle='rgba(0,0,0,.35)';g.fillRect(sx+3,sy+13,10,2);cSpr(g,ICONS[prof().icon],COLORS[prof().color],sx,sy-1-(fr===1?1:0),c.dir==='left',fr)}
     else{const n=e.n,p=e.p,fr=e.mv?Math.floor(p.mv.t/(Math.min(180,(n.spd||320)/2)))%2:-1,bob=e.mv?(fr===1?1:0):Math.floor(ts/600+n.x)%2;
-      if(n.swim){g.fillStyle='#2d6cc0';g.fillRect(sx,sy+10,16,6);g.fillStyle='#5d9be0';g.fillRect(sx+2+Math.floor(ts/300)%4,sy+11,6,1)}else{g.fillStyle='rgba(0,0,0,.35)';g.fillRect(sx+3,sy+13,10,2)}
-      cSpr(g,n.s,n.id==='peterson'&&dg?'':n.c,sx,sy-bob,p.dir==='left',fr);
+      if(n.swim){g.fillStyle=n.swim===2?'#5fc9c9':'#2d6cc0';g.fillRect(sx,sy+10,16,6);g.fillStyle=n.swim===2?'#bff0ee':'#5d9be0';g.fillRect(sx+2+Math.floor(ts/300)%4,sy+11,6,1)}else{g.fillStyle='rgba(0,0,0,.35)';g.fillRect(sx+3,sy+13,10,2)}
+      cSpr(g,n.s,n.c,sx,sy-bob,p.dir==='left',fr);
       const m=cMark(n);if(m){const my=sy-9-Math.floor(ts/300)%2;if(m==='duel'){g.fillStyle='#ff4d6d';g.fillRect(sx+7,my,2,6);g.fillRect(sx+5,my+4,6,1);g.fillRect(sx+7,my+6,2,2)}else{g.fillStyle='#ffd84a';g.fillRect(sx+7,my,2,5);g.fillRect(sx+7,my+6,2,2)}}}}
-  if(dg){g.fillStyle=`rgba(80,0,30,${.18+.06*Math.sin(ts/300)})`;g.fillRect(0,0,cv.width,cv.height)}
-  if(CM.fx>0){g.fillStyle=`rgba(255,255,255,${Math.min(.85,CM.fx)})`;g.fillRect(-10,-10,cv.width+20,cv.height+20)}
+  if(dg){g.fillStyle=MM.th==='ice'?`rgba(0,40,90,${.2+.06*Math.sin(ts/300)})`:`rgba(80,0,30,${.18+.06*Math.sin(ts/300)})`;g.fillRect(0,0,cv.width,cv.height)}
+  if(MM.snow||(dg&&MM.th==='ice'))cSnow(g,cv,ts,MM.snow?1:.5);
+  if(CM.fx>0){g.fillStyle=MM.th==='ice'?`rgba(200,240,255,${Math.min(.85,CM.fx)})`:`rgba(255,255,255,${Math.min(.85,CM.fx)})`;g.fillRect(-10,-10,cv.width+20,cv.height+20)}
   g.restore();
   if(CM.fade){const k=CM.fade.t/CM.fade.d,a=k<.5?k*2:2-k*2;g.fillStyle=`rgba(0,0,0,${Math.min(1,a*1.1)})`;g.fillRect(0,0,cv.width,cv.height)}
 }
@@ -1847,8 +1874,9 @@ function cTile(g,t,x,y,sx,sy,ts){
   }
 }
 // interiors; dg = the classroom has become a dungeon
-function cTileIn(g,t,x,y,sx,sy,ts,dg){
+function cTileIn(g,t,x,y,sx,sy,ts,dg,th){
   const h=cHash(x,y),R=(c,a,b,w,hh)=>{g.fillStyle=c;g.fillRect(sx+a,sy+b,w,hh)};
+  if(th==='ice'&&cTileIce(g,t,x,y,sx,sy,ts,dg,R,h))return;
   const floor=()=>{if(dg){R('#2a2433',0,0,16,16);R('#1d1826',0,(y%2)*8,16,1);R('#1d1826',(x%2)*8,0,1,16);if(h%5===0)R('#3a3247',(h>>3)%12+2,(h>>6)%12+2,3,1)}else{R('#b8875a',0,0,16,16);R('#a3744b',0,3,16,1);R('#a3744b',0,8,16,1);R('#a3744b',0,13,16,1);R('#a3744b',(h%4)*4,4,1,4);R('#c9976a',(h>>3)%12,10,3,1)}};
   const wallIn=()=>{if(dg){R('#1b1424',0,0,16,16);R('#120d19',0,5,16,1);R('#120d19',0,11,16,1);R('#120d19',(y%2)*8+3,0,1,5);if(x%4===2&&y===0){R('#5a3a1e',7,6,2,8);R(Math.floor(ts/120+x)%2?'#ff6a3d':'#ffd84a',6,2,4,5);R('rgba(255,106,61,.25)',2,0,12,14)}}else{R('#e9e0cf',0,0,16,16);R('#c3b79c',0,12,16,4);R('#a8987a',0,12,16,1);R('#d8cdb8',0,3,16,1)}};
   switch(t){
@@ -1877,7 +1905,7 @@ function cTileIn(g,t,x,y,sx,sy,ts,dg){
 }
 
 /* ---------- input ---------- */
-const CTALKOVER='CJygO';
+const CTALKOVER='CJygOo';
 function campInteract(){const c=cS();if(CM.mov||CM.fade)return;const [dx,dy]=CDIR[c.dir],tx=c.x+dx,ty=c.y+dy,T=cMapT();
   let n=cNpcAt(tx,ty);
   // talk across counters, the judge's bench, and tables
@@ -1893,7 +1921,7 @@ function campAct(v,el){
   if(v==='leave')return campLeave();
   if(v.startsWith('tab:')){CM.menu={tab:v.slice(4)};campOv();return}
   if(v.startsWith('pick:'))return campPick(+v.slice(5));
-  if(v.startsWith('eq:')){const k=v.slice(3),c=cS();if(!cHas(k))return;if(cEq(k))c.eq=c.eq.filter(x=>x!==k);else{while(c.eq.length>=cSlots())c.eq.shift();c.eq.push(k)}save();campOv();return}
+  if(v.startsWith('eq:')){const k=v.slice(3),c=cBag();if(!cHas(k))return;if(cEq(k))c.eq=c.eq.filter(x=>x!==k);else{while(c.eq.length>=cSlots())c.eq.shift();c.eq.push(k)}save();campOv();return}
 }
 function campKeyAct(k){
   if(CM.ask){const A=CM.ask;if(k==='up'){A.sel=(A.sel+A.opts.length-1)%A.opts.length;campOv();blip(600)}else if(k==='down'){A.sel=(A.sel+1)%A.opts.length;campOv();blip(600)}else if(k==='z')campPick(A.sel);else if(/^[1-4]$/.test(k)&&+k<=A.opts.length)campPick(+k-1);return}
@@ -1913,6 +1941,580 @@ function campKey(e,down){
 }
 document.addEventListener('keyup',e=>{if(V==='camp')campKey(e,false)});
 window.addEventListener('blur',()=>{CM.held=[]});
+
+/* ================= CAMPAIGN REGION 2: THE TORTS TUNDRA ================= */
+/* Snowfields, slippery ice, igloos, a ski lodge, a hot spring, and Prof. Pimentel's lecture hall,
+   which freezes into an ice cave for the final. Two semesters of torts problems. */
+(()=>{const pad=a=>{const r=a.map(x=>(x+'............').slice(0,12));while(r.length<12)r.push('............');return r.slice(0,12)};
+const add={
+yeti:['..XXXXXXXX..','.XXXXXXXXXX.','.XXooXXooXX.','.XXXXXXXXXX.','.XXXoooooXX.','XXXXXXXXXXXX','XXXXXXXXXXXX','XX.XXXXXX.XX','XX.XXXXXX.XX','...XXXXXX...','...XX..XX...','..XXX..XXX..'],
+penguin:['....oooo....','...oooooo...','..ooXooXoo..','..oooXXooo..','..oXXXXXXo..','.ooXXXXXXoo.','ooXXXXXXXXoo','.oXXXXXXXXo.','..oXXXXXXo..','..ooXXXXoo..','...XX..XX...'],
+moose:['X..X....X..X','XXXX....XXXX','.XXXX..XXXX.','...XXXXXX...','...XoXXoX...','...XXXXXX...','....XXXXX...','....XooXXXXX','.XXXXXXXXXXX','.XXXXXXXXXX.','.X.X....X.X.','.X.X....X.X.'],
+owl:['..X......X..','..XXXXXXXX..','.XXXXXXXXXX.','.XoooXXoooX.','.XoXoXXoXoX.','.XoooXXoooX.','.XXXXooXXXX.','XXXXXXXXXXXX','XXoXXXXXXoXX','.XXoXXXXoXX.','..XXXXXXXX..','...o....o...'],
+bear:['.XX......XX.','XXXX....XXXX','XXXXXXXXXXXX','.XXoXXXXoXX.','.XXXXXXXXXX.','.XXXXooXXXX.','..XXooooXX..','..XXXXXXXX..','.XXXXXXXXXX.','XXXXXXXXXXXX','XXX.XXXX.XXX','.XX.XXXX.XX.'],
+otter:['............','...XXXXX....','..XoXXoXX...','..XXooXXX...','..XXXXXXX...','...XXXXXX...','..XXXXXXXX..','.XXXXXXXXXX.','.XXXXXXXXXXX','..XXXXXXXX.X','..XX....XX..'],
+capy:['............','..XX........','.XXXXXXXXX..','XXoXXXXXXXX.','XXXXXXXXXXXX','oXXXXXXXXXXX','.XXXXXXXXXXX','..XXXXXXXXX.','..XX.XX.XX..','..XX.XX.XX..'],
+goggles:['............','............','XXXXXXXXXXXX','XooooXXooooX','XooXoXXoXooX','XooooXXooooX','XXXXX..XXXXX'],
+chains:['XXX.........','X.X.........','XXXXX.......','..X.X.......','..XXXXX.....','....X.X.....','....XXXXX...','......X.X...','......XXXXX.','........X.X.','........XXX.'],
+stamp:['....XXXX....','....XXXX....','.....XX.....','.....XX.....','..XXXXXXXX..','.XXXXXXXXXX.','.XXXXXXXXXX.','............','.XoXoXoXoX..','.oXoXoXoXo..'],
+towel:['XXXXXXXXXXXX','XoXoXoXoXoXX','XXXXXXXXXXXX','XXXXXXXXXXXX','XoooooooooXX','XXXXXXXXXXXX','XXXXXXXXXXXX','XoXoXoXoXoXX','XXXXXXXXXXXX'],
+charm:['.....X......','..X..X..X...','...X.X.X....','....XXX.....','XXXXXoXXXXX.','....XXX.....','...X.X.X....','..X..X..X...','.....X......'],
+scale:['.....XX.....','XXXXXXXXXXXX','.X...XX...X.','.X...XX...X.','X.X..XX..X.X','XXX..XX..XXX','.....XX.....','.....XX.....','....XXXX....','..XXXXXXXX..'],
+horn:['............','X...........','XX..........','XXX.........','.XXXX.......','.XXXXXX.....','..XXXXXXXX..','..XXXXXXXXXX','...XXXXXXXXX','.....XXXXXX.'],
+badge:['.....XX.....','....XXXX....','XXXXXXXXXXXX','.XXXXooXXXX.','..XXoXXoXX..','..XXXooXXX..','.XXXXXXXXXX.','.XXX....XXX.','XX........XX'],
+helmet:['...XXXXXX...','..XXXXXXXX..','.XXXXoXXXXX.','.XXXoXoXXXX.','XXXXXXXXXXXX','XXXXXXXXXXXX','XXooooooooXX','XX........XX','XX........XX'],
+snow1:['.....XX.....','....XXXX....','..XXXXXXXX..','.XXXXXXXXXX.','............','.XXXXXXXXXX.','XXXoXXXXoXXX','XXXXXXXXXXXX','XXXXoXXoXXXX','.XXXXooXXXX.','..XXXXXXXX..','....XXXX....'],
+snow2:['XXXXXXXXXXX.','X.X.X.X.X.X.','X...X...X...','............','.XXXXXXXXXX.','XXXoXXXXoXXX','XXXoXXXXoXXX','XXXXXXXXXXXX','XXXXoXXoXXXX','.XXXXooXXXX.','..XXXXXXXX..','....XXXX....'],
+};Object.keys(add).forEach(k=>add[k]=pad(add[k]));Object.assign(SPR,add)})();
+ICONS.push('snow1','snow2');
+Object.assign(CICON,{snow1:{name:'Tundra Survivor (finish the fall semester in the Torts Tundra)',icon:'snow1',sem:1,reg:'torts'},snow2:{name:'Tundra Legend (finish the spring semester in the Torts Tundra)',icon:'snow2',sem:2,reg:'torts'}});
+
+/* ---------- tundra music ---------- */
+SONGS.tundra=[
+ {title:'Snowdrift Waltz',bpm:104,swing:.08,bass:'walk',drums:'chill',arp:'8th',lw:'bell',aw:'bell',
+  bars:[['Gmaj7'],['Em9'],['Cmaj7'],['D7sus',8,'D7',8],['Bm7'],['Em7'],['Am7',8,'D7',8],['Gmaj7']],
+  mel:'B5:2 D6:2 G6:4 F#6:2 D6:2 B5:4|E6:2 D6:2 B5:2 G5:2 A5:4 B5:4|C6:2 E6:2 G6:4 F#6:2 E6:2 C6:4|A5:6 -:2 D6:2 C6:2 A5:4|D6:2 F#6:2 A6:4 F#6:2 D6:2 B5:4|G5:2 B5:2 E6:4 D6:4 B5:4|C6:2 B5:2 A5:2 G5:2 F#5:2 A5:2 D6:4|G6:8 D6:4 -:4'},
+ {title:'Black Ice Boogie',bpm:100,swing:.06,bass:'rock',drums:'rock',arp:'8th',lw:'gtr',pw:'keys',aw:'keys',
+  bars:[['Amaj9'],['F#m9'],['Dmaj9'],['E13'],['C#m7'],['F#m7',8,'B7',8],['Dmaj7',8,'E7sus',8],['Amaj9']],
+  mel:'C#6:3 B5:1 A5:2 B5:2 C#6:4 E6:4|F#6:4 E6:2 C#6:2 A5:6 -:2|D6:2 E6:2 F#6:2 A6:2 G#6:4 F#6:4|E6:6 -:2 B5:2 C#6:2 D6:2 E6:2|G#6:3 F#6:1 E6:2 C#6:2 B5:4 G#5:4|A5:2 C#6:2 F#6:4 D#6:2 F#6:2 A6:4|A6:2 F#6:2 D6:2 C#6:2 B5:4 E6:4|C#6:8 -:2 E6:2 C#6:4'},
+];
+SONGS.lodge=[
+ {title:'Fireside Deposition',bpm:82,swing:.16,bass:'bossa',drums:'shop',arp:'8th',lw:'keys',pw:'keys',aw:'bell',
+  bars:[['Bbmaj7'],['Gm9'],['Ebmaj7'],['F7sus',8,'F7',8],['Dm7'],['Gm7'],['Cm7',8,'F7',8],['Bbmaj7']],
+  mel:'D6:4 F6:2 D6:2 Bb5:4 C6:4|D6:2 Bb5:2 G5:4 A5:2 Bb5:2 D6:4|G6:4 F6:2 Eb6:2 D6:4 Bb5:4|C6:6 -:2 A5:2 C6:2 Eb6:4|F6:4 E6:2 D6:2 A5:4 C6:4|Bb5:2 D6:2 F6:4 G6:4 F6:4|Eb6:2 D6:2 C6:2 Bb5:2 A5:4 C6:4|Bb5:10 -:6'},
+];
+SONGS.tduel=[
+ {title:'Snowball Fight Club',bpm:156,swing:0,bass:'slap',drums:'battle',arp:'16th',lw:'p50',lw2:'bell',
+  bars:[['Bm9'],['Gmaj7'],['Em9'],['F#7#9'],['Bm9'],['Dmaj7'],['Em7',8,'F#7b9',8],['Bm9']],
+  mel:'B5:2 D6:1 F#6:1 B6:4 A6:2 F#6:2 E6:2 D6:2|G6:2 F#6:2 D6:2 B5:2 D6:4 G6:4|E6:1 F#6:1 G6:2 B6:2 G6:2 F#6:2 E6:2 B5:4|A#5:2 C#6:2 E6:2 G6:2 F#6:4 C#6:4|D6:1 C#6:1 B5:2 F#6:2 B6:4 A6:2 F#6:2 D6:2|F#6:2 A6:2 C#7:4 B6:2 A6:2 F#6:4|G6:2 F#6:2 E6:2 B5:2 A#5:2 C#6:2 E6:4|B5:4 F#6:4 B6:6 -:2'},
+ {title:'Avalanche Groove',bpm:124,swing:.04,bass:'rock',drums:'rock',arp:'16th',lw:'gtr',pw:'keys',
+  bars:[['F#m9'],['Dmaj9'],['Bm9'],['C#7#9'],['Amaj7'],['Dmaj7'],['Bm7',8,'C#7',8],['F#m9']],
+  mel:'C#6:2 A5:2 F#5:2 G#5:2 A5:4 C#6:4|F#6:4 E6:2 C#6:2 A5:4 F#5:4|D6:2 C#6:2 B5:2 A5:2 B5:4 F#6:4|F6:6 -:2 C#6:2 B5:2 G#5:4|E6:2 C#6:2 A5:2 C#6:2 E6:4 G#6:4|F#6:3 E6:1 D6:2 C#6:2 A5:4 F#5:4|B5:2 D6:2 F#6:2 D6:2 C#6:2 F6:2 G#6:4|F#6:8 C#6:4 -:4'},
+];
+SONGS.icecave=[
+ {title:'Glacial Hearing',bpm:70,swing:0,bass:'root',drums:'half',arp:'8th',lw:'bell',aw:'bell',
+  bars:[['Em9'],['Cmaj7'],['Am9'],['B7b9'],['Em9'],['Fmaj7'],['F#m7b5',8,'B7b9',8],['Em9']],
+  mel:'B5:6 G5:2 E5:4 F#5:4|G5:4 E5:2 C5:2 B4:8|A5:4 C6:2 E6:2 D6:4 C6:4|D#5:6 F#5:2 A5:4 C6:4|B5:2 E6:2 G6:4 F#6:4 E6:4|A5:4 C6:4 F6:6 E6:2|C6:4 A5:2 F#5:2 D#5:4 F#5:4|E5:12 -:4'},
+];
+SONGS.tboss=[
+ {title:'Final Exam: Duty of Care',bpm:160,swing:0,bass:'boss',drums:'boss',arp:'16th',lw:'p50',lw2:'bell',
+  bars:[['Em9'],['Cmaj7'],['Am9'],['B7b9'],['Em9'],['Fmaj7#11'],['F#m7b5',8,'B7b9',8],['Em9']],
+  mel:'E6:1 G6:1 B6:2 A6:2 G6:1 F#6:1 E6:2 B5:2 G5:4|C6:2 E6:2 G6:2 B6:2 A6:4 E6:4|A5:1 C6:1 E6:2 A6:2 G6:2 E6:2 C6:2 A5:4|D#6:2 F#6:2 A6:2 C7:4 B6:2 A6:2 F#6:2|E6:1 F#6:1 G6:1 B6:1 E7:4 D7:2 B6:2 G6:4|A6:2 C7:2 B6:2 A6:2 E6:4 F6:2 G6:2|F#6:2 A6:2 C7:2 B6:2 A6:1 G6:1 F#6:2 D#6:4|E6:6 B5:2 E5:4 -:4'},
+ {title:'Final Exam: Strict Liability',bpm:160,swing:0,bass:'boss',drums:'drive',arp:'16th',lw:'gtr',
+  bars:[['Am9'],['Fmaj7'],['Dm9'],['E7b9'],['Am9'],['Bbmaj7#11'],['Bm7b5',8,'E7b9',8],['Am9']],
+  mel:'A5:1 C6:1 E6:2 D6:2 C6:1 B5:1 A5:2 E5:2 C5:4|F5:2 A5:2 C6:2 E6:2 D6:4 A5:4|D5:1 F5:1 A5:2 D6:2 C6:2 A5:2 F5:2 D5:4|G#5:2 B5:2 D6:2 F6:4 E6:2 D6:2 B5:2|A5:1 B5:1 C6:1 E6:1 A6:4 G6:2 E6:2 C6:4|D6:2 F6:2 E6:2 D6:2 A5:4 Bb5:2 C6:2|B5:2 D6:2 F6:2 E6:2 D6:1 C6:1 B5:2 G#5:4|A5:6 E5:2 A4:4 -:4'},
+];
+
+/* ---------- tundra items ---------- */
+Object.assign(CITEMS,{
+ goggles:{n:'TUNDRA GOGGLES',s:'goggles',c:'#6ad6ff',d:'+8 seconds on every Hypothetical question you answer.'},
+ chains:{n:'JOINT & SEVERAL CHAINS',s:'chains',c:'#c0c8d8',d:'When you lose a life, a random opponent loses one too.'},
+ stamp:{n:'STRICT LIABILITY STAMP',s:'stamp',c:'#ff4d6d',d:'Each opponent’s first miss of the match costs them 2 lives.'},
+ towel:{n:'HOT SPRING TOWEL',s:'towel',c:'#ff9be1',d:'Each time the topic changes, you heal 1 life (up to your maximum).'},
+ charm:{n:'LAST CLEAR CHANCE CHARM',s:'charm',c:'#9fe3ff',d:'Down to your last life? Double time, and one wrong answer is crossed out each turn.'},
+ uke:{n:'PIMENTEL’S UKULELE',s:'uke',c:'#ffd84a',d:'When your streak starts, a soothing chord breaks every opponent’s streak and shield.'},
+ scale:{n:'COMPARATIVE FAULT SCALE',s:'scale',c:'#ffd84a',d:'Only every other life you lose actually counts. Your fault is split down the middle.'},
+ horn:{n:'AVALANCHE HORN',s:'horn',c:'#ffffff',d:'When your streak starts, every opponent loses a heart.'},
+ badge:{n:'VICARIOUS LIABILITY BADGE',s:'badge',c:'#ffd84a',d:'Every opponent’s miss counts toward your own streak.'},
+ helmet:{n:'EGGSHELL HELMET',s:'helmet',c:'#f4f4f4',d:'+3 maximum lives. You’d be surprised how fragile you are without it.'},
+});
+// one place that turns equipped items into match powers (both regions)
+function campGear(me,eq){const h=k=>eq.includes(k);
+  if(h('buckler')){me.ward=1;me.stk=2}if(h('gavel'))me.gavel=1;if(h('coffee'))me.tmul=1.5;if(h('pamph'))me.hint=1;if(h('redpen'))me.pen=1;
+  if(h('cards'))me.noTO=1;if(h('medal'))me.streak=true;if(h('cert'))me.cert=1;
+  if(h('goggles'))me.gog=1;if(h('chains'))me.chains=1;if(h('stamp'))me.stamp=1;if(h('towel'))me.towel=1;if(h('charm'))me.charm=1;
+  if(h('uke'))me.uke=1;if(h('scale'))me.scale=1;if(h('horn'))me.horn=1;if(h('badge'))me.badge=1}
+// called by the engine right after someone loses a life
+function campLost(p){const me=G.players.find(isMe);
+  if(isMe(p)&&p.scale){p.cf=(p.cf||0)+1;if(p.cf%2===1){p.lives++;G.cnote='COMPARATIVE FAULT SCALE: you split the fault. No life lost this time.';return}}
+  if(isMe(p)&&p.chains){const os=G.players.filter(o=>o.alive&&o!==p&&o.lives>0);if(os.length){const o=pick(os);o.lives--;o.run=0;o.streak=false;if(o.lives<=0){o.alive=false;G.elim.push(o.id)}G.cnote=`JOINT & SEVERAL: ${o.n} goes down with you and loses a heart.`}}
+  if(p.cpu&&me&&me.stamp&&!p.stamped&&p.lives>0){p.stamped=1;p.lives--;G.cnote=`STRICT LIABILITY: ${p.n}’s first miss costs 2 lives.`}}
+// called by the engine when a streak begins
+function campStreak(p){if(!isMe(p))return;const os=G.players.filter(o=>o.alive&&o!==p);const notes=[];
+  if(p.uke){os.forEach(o=>{o.streak=false;o.run=0});notes.push('PIMENTEL’S UKULELE: a soothing chord breaks every streak but yours.')}
+  if(p.horn){os.forEach(o=>{o.lives--;if(o.lives<=0){o.alive=false;G.elim.push(o.id)}});notes.push('AVALANCHE HORN! Every opponent loses a heart.')}
+  if(notes.length)G.cnote=notes.join(' ')}
+// called by the engine when the topic changes
+function campTopic(){const me=G.players.find(isMe);if(me&&me.towel&&me.alive&&me.lives<me.maxL){me.lives++;say('HOT SPRING TOWEL: new topic, warm towel. +1 life.','good')}}
+
+/* ---------- the tundra map (44x36): irregular, rocky, slippery ---------- */
+const TTUN=(()=>{const W=44,H=36,m=Array.from({length:H},()=>Array(W).fill('.'));
+  const f=(x0,y0,x1,y1,c)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)m[y][x]=c},s=(x,y,c)=>{m[y][x]=c};
+  f(0,0,43,0,'C');f(0,35,43,35,'C');f(0,0,0,35,'C');f(43,0,43,35,'C');
+  f(1,1,12,4,'A');f(31,1,42,3,'A');f(1,5,3,7,'A');[[13,1],[14,2],[30,1],[29,3],[4,5],[13,4]].forEach(([x,y])=>s(x,y,'A'));
+  // Prof. Pimentel's lecture hall, carved from ice
+  f(15,1,28,3,'I');f(15,4,28,5,'J');s(21,5,'D');s(22,5,'D');s(18,7,'S');s(14,5,'x');s(29,5,'x');f(21,6,22,10,'=');
+  // ski lodge
+  f(32,5,41,7,'L');f(32,8,41,9,'W');s(34,8,'w');s(39,8,'w');s(36,9,'D');f(36,10,36,12,'=');f(30,12,36,12,'=');s(38,10,'S');s(33,10,'l');s(40,10,'l');
+  // ranger cabin
+  f(3,9,9,10,'R');f(3,11,9,12,'W');s(8,11,'w');s(5,12,'D');f(5,13,5,15,'=');f(5,15,12,15,'=');s(7,13,'S');s(2,12,'F');s(10,12,'F');
+  // village: a ring road around a bonfire
+  f(13,11,30,11,'=');f(13,19,30,19,'=');f(13,11,13,19,'=');f(30,11,30,19,'=');f(21,11,22,14,'=');f(21,16,22,19,'=');s(21,15,'f');s(22,15,'f');
+  [[14,12],[29,12],[14,18],[29,18]].forEach(([x,y])=>s(x,y,'l'));s(17,13,'m');s(26,17,'m');s(16,17,'x');s(27,13,'a');
+  // igloo village
+  f(4,19,7,20,'u');s(5,21,'D');f(9,24,11,25,'u');f(5,22,13,22,'=');f(13,19,13,22,'=');s(3,22,'S');
+  // ice-fishing pond (you slide on it)
+  f(14,24,20,28,'i');s(16,26,'o');s(18,25,'o');s(19,28,'o');
+  // train station
+  f(1,33,31,34,'t');f(2,31,14,32,'P');s(9,30,'S');f(8,23,8,30,'=');
+  // the ridge, with one gap guarded by the yeti
+  f(23,22,42,23,'C');s(36,22,'.');s(36,23,'.');f(35,20,36,21,'=');f(30,19,35,19,'=');
+  // the frozen lake puzzle (SE). '*' is a satchel frozen into the ice on the far island
+  const lake=['iixiiii.*','xiiiiiiii','iiiiiiiii','iiiiixiii','iiiiiiiii','iiiiiiiii','iiiixiiii'];
+  lake.forEach((r,j)=>[...r].forEach((ch,k)=>s(25+k,25+j,ch)));f(34,24,34,32,'x');f(25,24,33,24,'x');f(24,32,33,32,'x');f(24,24,24,26,'x');f(24,28,24,32,'x');s(23,26,'S');
+  // hot spring
+  f(36,28,40,31,'h');[[35,28],[35,30],[41,29],[41,31],[37,32],[39,32]].forEach(([x,y])=>s(x,y,'x'));s(35,26,'S');
+  // scattered pines, rocks, shrubs, footprints
+  [[2,14],[3,16],[11,8],[12,6],[10,26],[2,26],[4,28],[12,28],[22,26],[23,29],[21,31],[33,33],[41,25],[42,27],[36,34],[41,33],[35,15],[37,17],[40,14],[42,19],[33,19],[11,19],[1,19],[25,8],[27,9],[16,8],[13,9],[28,21],[41,21],[38,20]].forEach(([x,y])=>{if(m[y][x]==='.')s(x,y,'A')});
+  [[9,7],[24,7],[31,15],[38,15],[11,13],[20,22],[17,30],[29,33],[1,30],[39,24],[26,20]].forEach(([x,y])=>{if(m[y][x]==='.')s(x,y,'x')});
+  [[10,5],[26,6],[34,14],[2,24],[19,21],[24,21],[39,18],[16,22],[30,30]].forEach(([x,y])=>{if(m[y][x]==='.')s(x,y,'a')});
+  [[6,6],[10,9],[15,7],[25,10],[34,17],[12,17],[18,21],[6,25],[13,30],[27,23],[38,26],[24,32],[40,22],[3,18],[16,14],[25,16],[19,12],[28,15]].forEach(([x,y])=>{if(m[y][x]==='.')s(x,y,',')});
+  return m})();
+const TMAPS={
+ tundra:{kind:'tundra',t:TTUN,mus:'tundra',name:'TORTS TUNDRA',walk:'.,=iPB',slide:1,snow:1},
+ lodge:{kind:'in',mus:'lodge',name:'THE SKI LODGE',door:[[36,9]],t:grid([
+  'KKKKKKHHKKKKQKKK',
+  'KVVkkkkkkkkkkkkK',
+  'KkkkkkkrrkkkCCCK',
+  'KyykkkkrrkkkkkkK',
+  'KkkkkkkrrkkkkyyK',
+  'KVVkkkkrrkkkkkkK',
+  'KkkkkkkrrkkkkkkK',
+  'KzkkkkkrrkkkkVVK',
+  'KkkkkkkrrkkkkkzK',
+  'KkkkkkkkkkkkkkkK',
+  'KKKKKKKXXKKKKKKK'])},
+ cabin:{kind:'in',mus:'lodge',name:'THE RANGER CABIN',door:[[5,12]],t:grid([
+  'KKKQKKKKQKKK',
+  'KEEkkkkkqqqK',
+  'KkkkkkkkkkkK',
+  'KkkyykkkkkOK',
+  'KkkaakkkkkkK',
+  'KkkkkkrrkkkK',
+  'KzkkkkrrkkzK',
+  'KkkkkkkkkkkK',
+  'KKKKKXKKKKKK'])},
+ igloo:{kind:'in',th:'ice',mus:'lodge',name:'THE IGLOO',door:[[5,21]],t:grid([
+  'KKKKKKKKKK',
+  'KkkkkkkkvK',
+  'KkrrrrkkkK',
+  'KkrrrrkkkK',
+  'KkkkkkkkkK',
+  'KvkkkkkkzK',
+  'KkkkkkkkkK',
+  'KKKKXKKKKK'])},
+ hall:{kind:'in',th:'ice',mus:'lodge',name:'PROF. PIMENTEL’S LECTURE HALL',door:[[21,5],[22,5]],t:grid([
+  'KKKeeeeeeeeeeKKK',
+  'KkkkkkkjkkkkkkkK',
+  'KkkkkkkkkkkkkkkK',
+  'KkddkddkkddkddkK',
+  'KkkkkkkkkkkkkkkK',
+  'KkddkddkkddkddkK',
+  'KkkkkkkkkkkkkkkK',
+  'KkddkddkkddkddkK',
+  'KkkkkkkkkkkkkkkK',
+  'KzkkkkkkkkkkkkzK',
+  'KkkkkkkkkkkkkkkK',
+  'KKKKKKKXXKKKKKKK'])},
+};
+
+/* ---------- tundra townsfolk ---------- */
+const TNPC=[
+ {id:'tguide',n:'THE RESTATEMENT',s:'paper',c:'#e8d8a8',map:'tundra',x:19,y:13,v:300,guide:1},
+ {id:'tsam',n:'SNOWBALL SAM',s:'kid1',c:'#9fe3ff',map:'tundra',x:15,y:17,v:700,route:[[15,17],[19,17]],spd:260,pause:900},
+ {id:'tyeti',n:'THE YETI',s:'yeti',c:'#8fa8c8',map:'tundra',x:36,y:22,v:90},
+ {id:'tpeng',n:'PENGUIN PARKER',s:'penguin',c:'#ffffff',map:'igloo',x:4,y:1,v:820},
+ {id:'tmoose',n:'MAJOR MOOSE',s:'moose',c:'#a0703a',map:'tundra',x:10,y:14,v:150,route:[[10,13],[10,17]],spd:600,pause:2000},
+ {id:'towl',n:'AUNT AGATHA',s:'owl',c:'#c8a070',map:'cabin',x:2,y:2,v:640},
+ {id:'thusky',n:'RANGER HUSKY',s:'dog',c:'#b8c4d6',map:'cabin',x:6,y:2,v:560,route:[[6,2],[9,2]],spd:300,pause:1200},
+ {id:'tfrost',n:'DR. FROST',s:'person',c:'#4fc3c3',map:'lodge',x:3,y:8,v:380},
+ {id:'treason',n:'THE REASONABLE PERSON',s:'person',c:'#ffd84a',map:'tundra',x:25,y:15,v:330},
+ {id:'tbear',n:'BERNARD',s:'bear',c:'#7a4a2a',map:'lodge',x:13,y:1,v:130},
+ {id:'totto',n:'OTTO',s:'otter',c:'#a0703a',map:'tundra',x:17,y:27,v:540},
+ {id:'tspring',n:'CAPYBARA ATTENDANT',s:'capy',c:'#b07a4a',map:'tundra',x:38,y:28,v:200,swim:2},
+ {id:'tmaster',n:'STATIONMASTER',s:'person',c:'#6a8cff',map:'tundra',x:3,y:31,v:240,train:'cp'},
+ {id:'tskier',n:'A SKIER',s:'kid3',c:'#ff6a3d',map:'tundra',x:7,y:22,v:480,route:[[6,22],[12,22]],spd:220,pause:700,idle:[['* I ski at my own risk.','* I also ski at everyone else’s risk. That part is less legal.'],['* Did you know the ice pond is slippery?','* I learned that through a process called falling.']]},
+ {id:'t1',n:'FERN, A 1L',s:'kid1',c:'#c8f0ff',map:'tundra',x:11,y:17,v:600,stu:'t1'},
+ {id:'t2',n:'BJORN, A 2L',s:'kid2',c:'#ffb347',map:'lodge',x:10,y:6,v:250,stu:'t2'},
+ {id:'t3',n:'SKADI, A 3L',s:'kid3',c:'#9fb8ff',map:'tundra',x:38,y:33,v:420,stu:'t3'},
+ {id:'t4',n:'WINSLOW, A 3L',s:'kid4',c:'#7fe0c0',map:'igloo',x:7,y:3,v:350,stu:'t4',sem:2},
+ {id:'pimentel',n:'PROF. PIMENTEL',s:'pimentel',c:'',map:'hall',x:8,y:1,v:330},
+];
+TNPC.forEach(n=>CNPCBY[n.id]=n);
+CNPCBY.tspring.talk=n=>{const RG=REG(),c=cS();
+  if(cHas('towel'))return campSay([[n.id,'* ...'],[n.id,'* (The capybara is extremely relaxed. It has achieved the reasonable person standard of chill.)']]);
+  const done=TQ1.filter(q=>(c.qs[q.id]||0)>=3).length;
+  if(done>=3||SEM()===2)return campSay([[n.id,'* oh. you’re the helpful one.'],[n.id,'* i warmed this towel for you. in the spring. for three days.'],...cGive('towel')]);
+  return campSay([[n.id,'* ...welcome to the hot spring.'],[n.id,'* towels are for people who have helped three neighbors.'],[null,`* (You have helped ${done}.)`]])};
+
+/* ---------- tundra students ---------- */
+const tLines={
+ t1:{right:['i knew that one!!','hand warmers: ACTIVATED.','yes!! duty!!'],wrong:['eep.','that was in the reading...','my ears are cold and so is my brain.'],life:['oof.','that one stung.'],streak:['three in a row! i’m not shivering anymore!'],elim:['i’m going to go stand by the bonfire.']},
+ t2:{right:['BY ODIN AND THE RESTATEMENT!','Ha! Proximate!','The moot court team expects nothing less.'],wrong:['A setback. A saga continues.','Even heroes misread a hypo.','Curses. Foreseeably.'],life:['A wound!','Tis but a scratch. Within the scope of the risk.'],streak:['THREE! The skalds will sing of this.'],elim:['Carry me to the lodge on a shield.']},
+ t3:{right:['Obviously.','Cold. Correct.','Next.'],wrong:['Hm. Ice on the road.','A rare slip.','Noted.'],life:['Annoying.','Fine.'],streak:['Three. Like the elements of my ski run.'],elim:['I’ll be on the slopes.']},
+ t4:{right:['Correct, as the Restatement (Third) would say.','I wrote a note on that.','LL.M.-level answer.'],wrong:['Ah. A comparative fault moment.','My fault. Roughly 30%.','Unforeseeable.'],life:['A compensable injury.','Damages noted.'],streak:['Three. Res ipsa loquitur.'],elim:['I’ll be in the igloo, applying to things.']},
+};
+const TSTU={
+ t1:{n:'FERN',s:'kid1',c:'#c8f0ff',acc:.62,spd:.95,lives:3,item:'goggles',label:'DUEL · FERN THE 1L',topics:['int','def'],
+  pre:[['t1','* oh! h-hello! i brought hand warmers. for my hands. and my anxiety.'],['t1','* i just finished the intentional torts unit.'],['t1','* d-duel me? please? intentionally?']],
+  win:[['t1','* you’re so good at this. even your intent transfers.'],['t1','* take my TUNDRA GOGGLES. they help me read long hypotheticals in a blizzard.']],
+  lose:[['t1','* i... won? i won!! i have to tell my mom!']],after:[['t1','* i’m outlining battery. it’s very short. that’s what worries me.']]},
+ t2:{n:'BJORN',s:'kid2',c:'#ffb347',acc:.76,spd:1.25,lives:3,item:'chains',label:'DUEL · BJORN THE 2L',topics:['neg','cau','def'],
+  pre:[['t2','* HALT. I am BJORN. 2L. Moot court team. Hot cocoa enthusiast.'],['t2','* I have prepared for this duel the way my ancestors prepared for winter.'],['t2','* By reading the casebook. Twice. Have at thee!']],
+  win:[['t2','* A worthy foe! The skalds will sing of you. Probably off key.'],['t2','* Take my JOINT & SEVERAL CHAINS. When I fall, I take others with me. Now so shall you.']],
+  lose:[['t2','* VICTORY! I shall celebrate with a second cocoa.']],after:[['t2','* My moot court partner says I am “too loud.” I am exactly as loud as the reasonable Viking.']]},
+ t3:{n:'SKADI',s:'kid3',c:'#9fb8ff',acc:.87,spd:1.25,lives:3,item:'stamp',label:'DUEL · SKADI THE 3L',topics:['str','dig','neg','cau'],
+  pre:[['t3','* I ski. I lawyer. I don’t lose.'],['t3','* I already have a job. In a city with no snow.'],['t3','* I’m only here for the powder. And you, apparently.']],
+  win:[['t3','* Hm. You carved that well.'],['t3','* Take my STRICT LIABILITY STAMP. Fault doesn’t matter. Only results.']],
+  lose:[['t3','* Downhill from here. For you.']],after:[['t3','* The lake ice is perfect today. Don’t tell the Yeti I skated on it.']]},
+};
+const TSTU2={
+ t1:{n:'FERN',s:'kid1',c:'#c8f0ff',acc:.73,spd:1.05,lives:3,item:'scale',label:'SPRING DUEL · FERN THE 1L',topics:['neg','cau','def','str'],
+  pre:[['t1','* it’s spring! the snow is only knee-deep now!'],['t1','* i learned comparative fault. i’m only 40% nervous. rematch?']],
+  win:[['t1','* okay. you’re 100% better than me.'],['t1','* take my COMPARATIVE FAULT SCALE. it splits everything down the middle. even blame.']],
+  lose:[['t1','* i won!! i’m 0% at fault for that!']],after:[['t1','* i’m reading about products liability. my sled has so many warnings now.']]},
+ t2:{n:'BJORN',s:'kid2',c:'#ffb347',acc:.83,spd:1.35,lives:3,item:'horn',label:'SPRING DUEL · BJORN THE 2L',topics:['str','dig','neg','int'],
+  pre:[['t2','* SPRING! The season of rematches! And of slightly fewer layers!'],['t2','* My horn has been waiting for this. HAVE AT THEE AGAIN.']],
+  win:[['t2','* You have bested me twice! I am honored. And cold.'],['t2','* Take my AVALANCHE HORN. Sound it when you’re on a roll and watch the snow fall on everyone else.']],
+  lose:[['t2','* HA! The saga turns!']],after:[['t2','* I am writing an epic poem about our duels. It is 400 pages. It is mostly footnotes.']]},
+ t3:{n:'SKADI',s:'kid3',c:'#9fb8ff',acc:.9,spd:1.3,lives:3,item:'badge',label:'SPRING DUEL · SKADI THE 3L',topics:['dig','str','cau','def'],
+  pre:[['t3','* Last semester ever. The snow is melting. So is my patience.'],['t3','* One more run.']],
+  win:[['t3','* Huh. You’d make a good ski patroller.'],['t3','* Take my VICARIOUS LIABILITY BADGE. Everyone else’s mistakes become your advantage. That’s practice, basically.']],
+  lose:[['t3','* Called it.']],after:[['t3','* Graduation is on a mountain. I’m skiing down after. In the gown.']]},
+ t4:{n:'WINSLOW',s:'kid4',c:'#7fe0c0',acc:.92,spd:1.45,lives:3,item:'helmet',label:'DUEL · WINSLOW THE 3L',topics:null,
+  pre:[['t4','* Winslow. 3L. Applying for an LL.M. in Snow Law. It may not exist.'],['t4','* I’ve read the Restatement. The Second AND the Third.'],['t4','* I heard you’ve been making everyone whole. Let’s see how you handle the eggshell plaintiff: me.']],
+  win:[['t4','* Remarkable. You take your plaintiffs as you find them.'],['t4','* Take my EGGSHELL HELMET. It’s for people who are more fragile than they look. So, everyone.']],
+  lose:[['t4','* As the Restatement predicted.']],after:[['t4','* My igloo has a reading nook. The reading nook is also ice.']]},
+};
+Object.entries(tLines).forEach(([k,L])=>{if(TSTU[k])Object.assign(TSTU[k],L);Object.assign(TSTU2[k],L)});
+
+/* ---------- tundra questlines: fall (intentional torts, defenses, negligence basics) ---------- */
+const TQ1=[
+{id:'tsam',name:'Snowball Intent',steps:[
+ {npc:'tsam',pre:['* hi!! i threw a snowball at my friend Kip.','* i missed Kip. i hit Mrs. Ptarmigan instead. she was not amused.','* is that a battery against HER? i wasn’t aiming at her!'],
+  q:['Sam threw a snowball at Kip but hit Mrs. Ptarmigan instead. Battery against her?','Yes, his intent transfers to her','No, he didn’t intend to touch her at all','No, a snowball is too small to be a harmful contact','Only if she was seriously injured by it','Transferred intent: intent to hit one person carries over to the person actually hit.'],
+  ok:['* oh no. my intent TRAVELED.','* i’ll apologize to her. with a non-snowball.'],no:['* really? that’s not what kip said.']},
+ {npc:'tsam',pre:['* next time, i wound up to throw one at Kip.','* he saw it coming and flinched! but i never actually threw it.'],
+  q:['Sam winds up to throw a snowball at Kip, who sees it and flinches. Sam never throws it. Assault?','Yes, Kip feared an imminent hit','No, the snowball was never thrown','No, assault requires some physical contact','Only if Kip was actually hurt','Assault is intentionally causing reasonable apprehension of an imminent harmful or offensive contact.'],
+  ok:['* so the wind-up counts. i’m retiring from snowballs.'],no:['* hmm. i don’t think that’s right.']},
+ {npc:'tsam',pre:['* last one. i threw a snowball at Grandpa Elk while he napped.','* it hit him. he never woke up. he still doesn’t know!','* if he never knew... is it still battery?'],
+  q:['A snowball hits a sleeping person who never wakes up or learns of it. Battery?','Yes, battery doesn’t require awareness at the time','No, he never knew it happened','No, unknown contact can’t be offensive','Only if he later learns of the contact and objects to it','Battery protects against the contact itself; the plaintiff needn’t be aware of it when it happens. Assault is different.'],
+  ok:['* okay. i’m going to go apologize to everyone. alphabetically.'],no:['* are you sure? grandpa elk seemed fine...']}],
+ after:['* i build snowmen now. snowmen can’t sue. i checked.']},
+{id:'tyeti',name:'Get Off My Glacier',steps:[
+ {npc:'tyeti',pre:['* HRRRMMM.','* HIKERS WALKED ACROSS MY GLACIER. THEY THOUGHT IT WAS A PUBLIC TRAIL.','* IT IS NOT A PUBLIC TRAIL. IT IS MY HOUSE. IS THAT TRESPASS?'],
+  q:['Hikers cross the Yeti’s land, honestly but wrongly believing it’s public land. Trespass to land?','Yes, a mistake about ownership is no defense','No, they honestly thought the land was public','No, they caused no damage to the land','Only if they were warned to stay off first','Trespass requires only an intentional entry; a reasonable mistake about who owns the land doesn’t excuse it.'],
+  ok:['* HRRM. GOOD. I WILL BUILD A SIGN. A BIG ONE.'],no:['* HRRRRM. NO.']},
+ {npc:'tyeti',pre:['* NEXT. AN AVALANCHE PUSHED A SKIER ONTO MY GLACIER.','* HE DID NOT WANT TO BE THERE. HE WAS SCREAMING.','* IS HE A TRESPASSER?'],
+  q:['An avalanche sweeps a skier onto someone’s land against his will. Trespass to land?','No, his entry wasn’t voluntary','Yes, any entry onto land is a trespass','Yes, if he stays there more than an hour','Only if he damages something on the land','Trespass requires a voluntary act; being carried onto land by a force of nature isn’t one.'],
+  ok:['* HRRM. I GAVE HIM COCOA. HE IS STILL SCREAMING.'],no:['* NO. HE DID NOT CHOOSE THE AVALANCHE. THE AVALANCHE CHOSE HIM.']},
+ {npc:'tyeti',pre:['* LAST. IN A BLIZZARD, A HIKER BROKE INTO MY CAVE TO SURVIVE.','* SHE BURNED MY FIREWOOD. SHE LIVED. GOOD.','* MUST SHE PAY FOR MY FIREWOOD?'],
+  q:['To survive a blizzard, a hiker breaks into a cave and burns the owner’s firewood. Must she pay for the damage?','Yes, entry is privileged but damage isn’t','No, necessity excuses everything she did','No, the owner should pay her for her ordeal','Only if the owner was home at the time','Private necessity is an incomplete privilege: entry is allowed, but actual damage must be paid for (Vincent v. Lake Erie).'],
+  ok:['* HRRRM. FAIR. SHE CAN BRING ME NEW FIREWOOD.','* YOU MAY PASS. THE GLACIER PATH IS OPEN.'],no:['* HRRM. THAT IS NOT HOW NECESSITY WORKS.']}],
+ after:['* HRRM. I PUT UP A SIGN. IT SAYS “PRIVATE GLACIER.” PEOPLE TAKE SELFIES WITH IT.']},
+{id:'tpeng',name:'The Fish Shed',steps:[
+ {npc:'tpeng',pre:['* welcome to my igloo fish market! everything is fresh. or frozen. same thing.','* uh-oh. i accidentally locked a customer in the freezer shed for ten minutes.','* she was asleep the whole time and never knew. is that false imprisonment?'],
+  q:['A customer is locked in a shed for ten minutes while asleep, never learns of it, and isn’t harmed. False imprisonment?','No, she was unaware and unharmed','Yes, any intentional confinement counts','Yes, ten minutes is long enough to count','Only if the shed was dark inside','Under the Restatement, false imprisonment requires that the plaintiff knew of the confinement or was harmed by it.'],
+  ok:['* phew. i’ve added a big orange door handle on the inside.'],no:['* oh no. are you sure?']},
+ {npc:'tpeng',pre:['* now i think a walrus stole a herring. i have reason to think so. i saw him.','* can i keep him in the igloo while i check?'],
+  q:['A shopkeeper reasonably suspects a customer of shoplifting. May she detain him?','Yes, briefly and reasonably','Yes, until he confesses, however long that takes him','No, only the police may ever detain anyone','Only if the item is worth more than $100','The shopkeeper’s privilege allows a brief, reasonable detention based on reasonable suspicion.'],
+  ok:['* okay. reasonable time. not a fortnight.','* (the herring was in his other flipper. he paid.)'],no:['* hmm. that sounds wrong. and illegal.']},
+ {npc:'tpeng',pre:['* last one. a customer wanted to leave without paying.','* i said: “if you leave, i’ll tell everyone your sweater is ugly.”','* she stayed! did i falsely imprison her?'],
+  q:['A shopkeeper threatens to insult a customer’s sweater if she leaves. She stays. False imprisonment?','No, a threat to her reputation isn’t confinement','Yes, any threat that makes someone stay counts as confinement','Yes, because she actually stayed','Only if she stayed longer than an hour','Confinement must come from barriers, force, threats of force, or asserted legal authority. Threats to embarrass someone don’t qualify.'],
+  ok:['* good. also, her sweater was lovely. i lied.','* thank you! have a fish. it’s frozen. it’s also a fish.'],no:['* oh. i don’t think a sweater insult is a cell.']}],
+ after:['* business is good! no one has been imprisoned all week! a record!']},
+{id:'tmoose',name:'The Borrowed Sled',steps:[
+ {npc:'tmoose',pre:['* ...moose.','* my neighbor took my sled without asking. for ten minutes.','* he brought it back. perfectly fine. ...what is my claim?'],
+  q:['A neighbor takes a sled without permission for ten minutes and returns it unharmed. Best claim?','Trespass to chattels, at most','Conversion, for the sled’s full value','Battery, since the sled is personal property','Trespass to land, since the sled was on land','A brief, harmless interference is at most trespass to chattels, not conversion.'],
+  ok:['* ...moose. (that means: fair.)'],no:['* ...moose? (that means: no.)']},
+ {npc:'tmoose',pre:['* another neighbor took my sled.','* and sold it. to a stranger. for cocoa money.'],
+  q:['Someone takes another’s sled and sells it to a stranger. Best claim?','Conversion','Trespass to chattels only','Private nuisance','No claim, since the owner can track down the buyer','Selling another’s property is a serious interference: conversion.'],
+  ok:['* ...moose. (that means: i knew it.)'],no:['* ...moose. no.']},
+ {npc:'tmoose',pre:['* if it’s conversion...','* what do i get?'],
+  q:['For conversion of a sled, the owner usually recovers:','Its full value at the time','Only the cost of renting another sled','Nominal damages only','Twice what the sled originally cost','Conversion is a forced sale: the converter pays the chattel’s full value at the time of conversion.'],
+  ok:['* ...moose.','* (the moose seems pleased. it’s hard to tell. it’s a moose.)'],no:['* ...moose. that seems low. or high. moose.']}],
+ after:['* ...moose. (new sled. it has a lock. the lock has a lock.)']},
+{id:'towl',name:'Outrageous!',steps:[
+ {npc:'towl',pre:['* hoo. as a prank, a crow told me my nephew had fallen through the ice.','* he hadn’t. i was beside myself for weeks. couldn’t sleep, couldn’t eat.','* is that a tort?'],
+  q:['As a prank, someone falsely tells a woman her nephew fell through the ice. She suffers severe distress for weeks. Claim?','Intentional infliction of emotional distress','Battery, since the words struck her','Assault, since she feared harm','No claim, since words alone can never be a tort','Extreme and outrageous conduct that intentionally or recklessly causes severe distress is IIED.'],
+  ok:['* hoo. i knew that crow was outrageous.'],no:['* hoo? i don’t think so, dear.']},
+ {npc:'towl',pre:['* at the town meeting, that same crow called me a “feathery fool.”','* i was annoyed for about an hour.','* is THAT intentional infliction?'],
+  q:['Someone calls a neighbor a “feathery fool” at a meeting. She’s annoyed for an hour. IIED?','No, it’s neither outrageous nor severe','Yes, insults in public are always outrageous','Yes, because she was upset','Only if the speaker is a public official','IIED requires conduct beyond all bounds of decency and severe distress; ordinary insults don’t qualify.'],
+  ok:['* hoo. fair. i’ve been called worse. by my nephew.'],no:['* hoo. that seems like a lot of lawsuits.']},
+ {npc:'towl',pre:['* last one. the crow later attacked my sister.','* i wasn’t there. i read about it in a letter a week later. i was devastated.','* can i sue for my distress?'],
+  q:['A relative learns by letter a week later that her sister was attacked, and suffers distress. IIED claim against the attacker?','Unlikely, since she wasn’t present','Yes, she is a close family member','Yes, the attack was outrageous','Only if she was physically hurt too','When conduct is aimed at a third person, IIED generally requires the plaintiff to be present.'],
+  ok:['* hoo. my sister will sue. i’ll bring her soup.'],no:['* hoo... i don’t think that’s the rule.']}],
+ after:['* hoo. the crow apologized. it brought me a shiny button. i’m considering it.']},
+{id:'thusky',name:'Defense of the Woodpile',steps:[
+ {npc:'thusky',pre:['* ARF! I’m the ranger. Somebody keeps stealing logs from our woodpile.','* Can I rig a spring trap that could seriously hurt the thief?'],
+  q:['A ranger wants to rig a trap that could seriously injure a log thief. Allowed?','No, not that force for property','Yes, if a warning sign is posted','Yes, since the thief is a trespasser','Only if the thefts happen at night','Katko v. Briney: a person may not use force likely to cause death or serious harm only to protect property.'],
+  ok:['* No traps. Got it. I’ll just guard it. Loudly.'],no:['* ARF. That doesn’t sound safe or legal.']},
+ {npc:'thusky',pre:['* A wolf lightly shoved me. I hit him with my shovel and broke his leg.','* He started it! Am I covered by self-defense?'],
+  q:['After a light shove, the defender breaks the other’s leg with a shovel. Is the force privileged?','No, the force was excessive for the threat','Yes, the wolf struck first','Yes, self-defense permits any force once attacked','Only if the defender was on his own land','Self-defense allows only force reasonably necessary to meet the threat.'],
+  ok:['* Oof. I’ll bring the wolf some soup. And an apology.'],no:['* ARF? I don’t think that’s right.']},
+ {npc:'thusky',pre:['* I saw what looked like a wolf attacking a pup, so I tackled the wolf.','* Turns out they were play-wrestling. Oops. Am I liable?'],
+  q:['A defender tackles someone he reasonably but wrongly believes is attacking a pup. Most courts today?','Privileged, if the mistake was reasonable','Never privileged, since no attack was happening','Privileged only if the pup was his own','Not privileged, since defending strangers isn’t allowed','Most courts allow defense of others based on a reasonable mistake about the need for it.'],
+  ok:['* Phew. They forgave me. We all played after. It was lovely.'],no:['* ARF. That seems harsh.']}],
+ after:['* ARF! The woodpile is safe. I named every log.']},
+{id:'tfrost',name:'Consent on the Slopes',steps:[
+ {npc:'tfrost',pre:['* Dr. Frost, ski patrol. I see a lot of injuries.','* In today’s race, one racer bumped another. Normal racing contact, within the rules.','* Battery?'],
+  q:['In a ski race, one racer makes normal, rule-permitted contact with another. Battery?','No, racers consent to that','Yes, any harmful contact is battery','Yes, if the other racer fell','Only if the bump was intentional','Participants consent to contact that is a normal part of the sport.'],
+  ok:['* Right. Racing is a contact sport. Mostly with snow.'],no:['* Hmm. Then every race would be a lawsuit.']},
+ {npc:'tfrost',pre:['* After the race, the loser walked over and punched the winner.'],
+  q:['After the race ends, one racer punches another. Battery?','Yes, it exceeds the consent','No, he consented by entering the race','No, sports injuries are never torts','Only if a penalty was called','Consent to a sport doesn’t extend to deliberate blows outside the game.'],
+  ok:['* I treated them both. The winner kept the trophy. And an ice pack.'],no:['* No. He didn’t sign up for that.']},
+ {npc:'tfrost',pre:['* Last one. A skier was knocked unconscious and needed emergency treatment.','* I treated her. She never consented. She couldn’t.','* Did I commit battery?'],
+  q:['A doctor gives emergency treatment to an unconscious skier who can’t consent. Battery?','No, consent is implied','Yes, she never consented','Yes, unless a court approved it first','Only if the treatment failed','In an emergency, when the patient can’t consent and a reasonable person would, consent is implied.'],
+  ok:['* Good. She sent me a thank-you card. And a fruit basket. Frozen.'],no:['* Then every rescuer would be sued. Try again.']}],
+ after:['* Wear a helmet. Not for legal reasons. For skull reasons.']},
+{id:'treason',name:'Am I Reasonable?',steps:[
+ {npc:'treason',pre:['* Hello. I am THE REASONABLE PERSON.','* I am a legal fiction. People compare themselves to me. It’s a lot of pressure.','* The lodge could add a $50 railing that prevents a 10% chance of a $10,000 fall. Should it?'],
+  q:['A $50 railing would prevent a 10% chance of a $10,000 injury. Under the Hand formula, is skipping it negligent?','Yes, since B < PL','No, a 10% chance is too unlikely to matter','No, the lodge doesn’t have to spend money on safety','Only if a statute requires railings','B < PL: $50 is less than 10% × $10,000 = $1,000, so taking the precaution is what reasonable care requires.'],
+  ok:['* Yes. I would install the railing. I would also hold the railing.'],no:['* Hm. Let me do the math with you again.']},
+ {npc:'treason',pre:['* Every lodge in the tundra skips a cheap safety rope. It’s custom.','* If you follow custom, are you automatically reasonable?'],
+  q:['Every lodge skips a cheap safety rope. Does following that custom prove reasonable care?','No, custom is evidence but not conclusive','Yes, following industry custom is always reasonable','Yes, if most lodges do the same thing','Only for professionals like doctors','The T.J. Hooper: a whole industry can lag behind; custom is relevant evidence but not a complete defense.'],
+  ok:['* Correct. I always bring my own rope.'],no:['* Then everyone could just agree to be careless.']},
+ {npc:'treason',pre:['* Last. A 12-year-old drives a snowmobile carelessly into a cabin.','* Which standard applies? A child’s, or mine?'],
+  q:['A 12-year-old carelessly drives a snowmobile. Which standard of care?','The adult standard','A reasonable 12-year-old of like experience','No standard, since children can’t be negligent','Strict liability for all children’s acts','Children engaged in dangerous adult activities, like driving motor vehicles, are held to the adult standard.'],
+  ok:['* Yes. The snowmobile doesn’t know how old you are.'],no:['* Hm. I’m not sure that’s reasonable.']}],
+ after:['* Someone asked if I’m real. I said that’s a question of fact for the jury.']},
+{id:'tbear',name:'The Lodge Steps',steps:[
+ {npc:'tbear',pre:['* GRRR. Welcome to the lodge. Cocoa’s hot. Steps are icy.','* A paying guest slipped on ice on my front steps. I knew it was there.','* Am I liable?'],
+  q:['A paying lodge guest slips on ice on the front steps. The owner knew about the ice. Likely liable?','Likely yes, she\u2019s an invitee','No, ice is a natural condition in the tundra','No, guests assume every risk of winter','Only if the guest was a child','Business invitees are owed reasonable care, including fixing or warning about known dangers.'],
+  ok:['* Grr. I’ll salt the steps. Then salt them again.'],no:['* GRR. My lawyer would disagree.']},
+ {npc:'tbear',pre:['* My friend visited socially. Not paying. Just for cocoa.','* He slipped on a hidden icy patch I knew about. I forgot to warn him.'],
+  q:['A social guest slips on a hidden icy patch the host knew about but didn’t warn of. Likely liable?','Likely yes, as he should have warned','No, social guests get no protection at all','No, the guest should have inspected for himself','Only if the guest paid for his cocoa','Licensees are owed a warning of concealed dangers the owner knows about.'],
+  ok:['* Grr. I’ll put up a sign. And a second sign about the first sign.'],no:['* Grr. That’s not what I read.']},
+ {npc:'tbear',pre:['* Last. A burglar I didn’t know about fell through a rotten floorboard in my shed.','* Do I owe HIM anything?'],
+  q:['An undiscovered burglar is hurt by a rotten floorboard. Under the traditional rule, is the owner liable?','Generally no','Yes, owners must inspect for everyone who enters','Yes, rotten floors are always negligence','Only if the burglar was a child','Owners generally owe undiscovered trespassers only a duty to avoid willful or wanton harm.'],
+  ok:['* Grr. I’m still fixing the floor.','* Have a cocoa. On the house. Literally. I own the house.'],no:['* GRRR. No.']}],
+ after:['* Grr. Cocoa’s hot. Steps are salted. Life is good.']},
+{id:'totto',name:'Fishing for Causes',steps:[
+ {npc:'totto',pre:['* hey! i run the fishing club. watch the ice, it’s slippery.','* a skater fell through a hole that wasn’t fenced. but she was going so fast...','* ...that a fence wouldn’t have stopped her. she’d have gone right over it. are we liable?'],
+  q:['A required fence was missing, but the skater was going so fast that a fence wouldn’t have stopped her fall. Is the club liable?','No, there’s no but-for cause','Yes, the fence was required','Yes, the club was negligent','Only if a statute required the fence','Without but-for causation, negligence alone doesn’t create liability.'],
+  ok:['* phew. we added a fence anyway. a tall one.'],no:['* hm. i don’t think the fence would have mattered.']},
+ {npc:'totto',pre:['* i carelessly left a loaded flare gun on the club table.','* a kid picked it up and dropped it on her foot. ouch!','* am i responsible for her foot?'],
+  q:['A loaded flare gun is carelessly left out. A child drops it on her foot. Proximate cause?','No, it’s outside the scope of the risk','Yes, but for the gun, there’d be no injury','Yes, children getting hurt is always foreseeable','Only if he owned the flare gun','Liability is limited to harms within the scope of the risk; the danger of a loaded flare gun is that it fires.'],
+  ok:['* oh good. i mean, ouch. but good.'],no:['* hmm. i don’t think that’s the risk.']},
+ {npc:'totto',pre:['* last one. i bumped a skier. carelessly. lightly.','* turns out she has very brittle bones. she broke her leg.','* do i pay for the whole leg? a normal person would’ve been fine!'],
+  q:['A careless bump breaks the leg of a skier with unusually brittle bones. How much is the careless defendant liable for?','The full harm she suffered','Only the harm an ordinary skier would have suffered','Nothing, since the injury was unforeseeable','Only if he knew about her bones','The eggshell plaintiff rule makes a negligent defendant liable for the full extent of the harm.'],
+  ok:['* the whole leg. okay. i’m sending flowers. frozen ones.'],no:['* that doesn’t sound right, unfortunately for my wallet.']}],
+ after:['* caught a fish today! well. the fish caught me. we’re in negotiations.']},
+];
+
+/* ---------- tundra questlines: spring (products, strict liability, defamation, privacy, harder negligence) ---------- */
+const TQ2=[
+{id:'tsam',name:'The Defective Sled',steps:[
+ {npc:'tsam',pre:['* i got a new sled! the runner snapped on day one!','* turns out the factory made MY runner thinner than their own design says.','* what kind of defect is that?'],
+  q:['A sled’s runner was made thinner than the maker’s own design specifications and snapped. Type of defect?','Manufacturing defect','Design defect','Warning defect','No defect, since sleds are inherently risky','A product that departs from its intended design has a manufacturing defect.'],
+  ok:['* manufacturing defect! i’m putting that on a poster.'],no:['* hm. i don’t think so.']},
+ {npc:'tsam',pre:['* my friend’s sled is the same model. not broken, but...','* EVERY sled of that model has no brakes. other brands add cheap brakes.'],
+  q:['Every unit of a sled model lacks a cheap brake that competitors use. A rider is hurt. Type of defect?','Design defect','Manufacturing defect','Warning defect','No defect, since the sleds match their design','A reasonable alternative design that would have reduced the risk points to a design defect.'],
+  ok:['* design defect. the whole model. yikes.'],no:['* but they’re all the same...']},
+ {npc:'tsam',pre:['* the shop that sold me the sled didn’t make it.','* they didn’t know about the defect either. can i still hold them strictly liable?'],
+  q:['A retailer sold a defective sled without knowing of the defect. Can it be strictly liable?','Yes, as a commercial seller','No, it didn’t manufacture the sled','No, it had no knowledge of the defect','Only if it assembled the sled itself','Strict products liability applies to all commercial sellers in the distribution chain.'],
+  ok:['* okay. i’ll write them a strongly worded letter. in crayon.'],no:['* hm. the shop seemed so sure.']}],
+ after:['* my new sled has brakes. and a helmet. and a lawyer.']},
+{id:'tyeti',name:'Avalanche Control',steps:[
+ {npc:'tyeti',pre:['* HRRM. SPRING. I SET OFF CONTROLLED AVALANCHES WITH EXPLOSIVES.','* I USE EVERY CARE. EVERY. CARE.','* STILL, A CABIN GOT DAMAGED. AM I LIABLE?'],
+  q:['A careful operator uses explosives to trigger avalanches, and a cabin is damaged. Liable without negligence?','Yes, it’s abnormally dangerous','No, he used every possible care in blasting','No, avalanches are acts of nature','Only if a safety statute was violated','Strict liability applies to abnormally dangerous activities like blasting, regardless of care.'],
+  ok:['* HRRM. I WILL PAY FOR THE CABIN. AND NAME AN AVALANCHE AFTER IT.'],no:['* HRRM. CARE DOESN’T MATTER HERE.']},
+ {npc:'tyeti',pre:['* I KEEP A PET SNOW LEOPARD. VERY CAREFULLY.','* IT ESCAPED. IT SCRATCHED A HIKER.'],
+  q:['A carefully kept pet snow leopard escapes and injures a hiker. The owner’s liability?','Strict liability, since it’s a wild animal','Only if the owner was careless','None, since the hiker should have stayed away','Only if the leopard had attacked before','Owners of wild animals are strictly liable for harm from the animal’s dangerous propensities.'],
+  ok:['* HRRM. THE LEOPARD IS NOW AN INDOOR CAT.'],no:['* HRRM. A LEOPARD IS NOT A HAMSTER.']},
+ {npc:'tyeti',pre:['* LAST. MY BLASTING NOISE SCARED A NEIGHBOR’S MINK.','* THE MINK, IN PANIC, HARMED THEIR OWN YOUNG. TERRIBLE.','* STRICT LIABILITY FOR THAT TOO?'],
+  q:['Blasting noise frightens a farmer’s mink, who then kill their young. Strict liability for the blaster?','No, it’s not blasting’s typical risk','Yes, blasting always carries strict liability','Yes, the noise caused the harm','Only if the blaster was careless','Foster v. Preston Mill: strict liability covers only harms from the activity’s abnormally dangerous risk.'],
+  ok:['* HRRM. STILL, I SENT THE FARMER A CARD.','* YOU MAY PASS. AGAIN.'],no:['* HRRM. NO. THINK ABOUT WHY BLASTING IS DANGEROUS.']}],
+ after:['* HRRM. THE LEOPARD AND I ARE TAKING A MEDITATION CLASS.']},
+{id:'tpeng',name:'The Tundra Times',steps:[
+ {npc:'tpeng',pre:['* THE TUNDRA TIMES printed that i steal fish!! it’s false!!','* i’m just a penguin with a shop. a private figure.','* do i have to prove they KNEW it was false?'],
+  q:['A newspaper falsely reports that a private shopkeeper steals fish. To recover actual damages, what fault must she show?','At least negligence, as a private figure','Actual malice, as for every plaintiff','No fault at all, since the story was false','Intent to harm her specifically','Gertz: private figures may recover actual damages on a showing of at least negligence.'],
+  ok:['* negligence! they didn’t even call me!'],no:['* that seems hard. or too easy.']},
+ {npc:'tpeng',pre:['* they ALSO wrote that the mayor took bribes. also false.','* they checked carelessly. the mayor is a public official.','* can the mayor win?'],
+  q:['A paper carelessly publishes a false story that the mayor took bribes. Can the mayor win?','Not without proving actual malice','Yes, the paper was negligent','Yes, because the story was false','Only if the mayor lost an election','New York Times v. Sullivan: public officials must prove knowing or reckless falsity.'],
+  ok:['* the mayor is furious. but legally, frozen.'],no:['* hm. public officials have it harder.']},
+ {npc:'tpeng',pre:['* a food critic wrote: “in my opinion, Parker’s fish are the worst in the tundra.”','* RUDE. is that defamation?'],
+  q:['A critic writes, “In my opinion, Parker’s fish are the worst in the tundra.” Defamation?','No, it’s pure opinion','Yes, it hurt her business','Yes, any negative review is defamatory','Only if the critic is a professional','Statements of pure opinion that can’t be proven true or false aren’t actionable.'],
+  ok:['* fine. i’m making the fish better. out of spite.'],no:['* i WISH that were true. but no.']}],
+ after:['* the Tundra Times printed a retraction! in very small letters. i used a magnifying glass.']},
+{id:'tmoose',name:'The Midnight Snowplow',steps:[
+ {npc:'tmoose',pre:['* ...moose.','* the neighbor runs a snowplow at 3 a.m. every night. loudly.','* i cannot sleep. moose.'],
+  q:['A neighbor loudly runs a snowplow at 3 a.m. every night. Best claim?','Private nuisance','Trespass to land','Public nuisance only','Strict liability','Substantial, unreasonable interference with the use and enjoyment of land is a private nuisance.'],
+  ok:['* ...moose. (that means: sleep is coming.)'],no:['* ...moose? no.']},
+ {npc:'tmoose',pre:['* the plow depot was there before i moved in.','* does that mean i lose? moose.'],
+  q:['The plaintiff moved in next to a long-running plow depot. Is “coming to the nuisance” a complete bar?','No, it’s only a factor to weigh','Yes, the plaintiff chose to move there','Yes, the depot was there first','Only if the plaintiff knew about the depot','Most courts treat coming to the nuisance as a factor, not an automatic defense.'],
+  ok:['* ...moose. good.'],no:['* ...moose. that seems unfair to moose.']},
+ {npc:'tmoose',pre:['* the plow’s fumes fog the whole village. everyone is annoyed.','* but i also lost my lichen farm. completely.','* who can sue for public nuisance?'],
+  q:['Fumes annoy the whole village, but one resident’s lichen farm is destroyed. Who may sue privately for public nuisance?','Only the lichen farmer','Every annoyed villager','No private person, ever','Only the village mayor','A private plaintiff needs harm different in kind from the general public’s.'],
+  ok:['* ...moose!','* (the moose is so happy it moos twice. moose moose.)'],no:['* ...moose. try again.']}],
+ after:['* ...moose. (the plow now runs at 10 a.m. moose approves.)']},
+{id:'towl',name:'Privacy, Please',steps:[
+ {npc:'towl',pre:['* hoo. a neighbor watches me through a telescope. inside my home.','* he never shows anyone. still. hoo.'],
+  q:['A neighbor watches someone inside her home through a telescope but never shares what he sees. Best claim?','Intrusion upon seclusion','Public disclosure of private facts','False light','No claim, since nothing was published','Intrusion doesn’t require publication, just a highly offensive intrusion into a private space.'],
+  ok:['* hoo. i’ve bought curtains. owl-patterned.'],no:['* hoo. i don’t think he needs to share it.']},
+ {npc:'towl',pre:['* a cocoa company put my face in its ads. “AUNT AGATHA DRINKS FROSTY COCOA.”','* i do not. i didn’t agree to this.'],
+  q:['A company uses a person’s likeness in its ads without consent. Best claim?','Appropriation of name or likeness','Intrusion upon seclusion','Defamation','No claim, since the ad is flattering','Using someone’s identity for commercial benefit without consent is appropriation.'],
+  ok:['* hoo. i’ll sue. in tea, which i actually drink.'],no:['* hoo? no, dear.']},
+ {npc:'towl',pre:['* the Tundra Times used my photo next to a story about con artists.','* i’m not a con artist! it made me look like one. hoo!'],
+  q:['A paper places an honest person’s photo in a story about con artists, implying she is one. Best privacy claim?','False light','Appropriation','Intrusion upon seclusion','Public disclosure of private facts','Publicity placing someone in a highly offensive false light is the false light tort.'],
+  ok:['* hoo. i feel lighter already. not false lighter. just lighter.'],no:['* hoo. not quite.']}],
+ after:['* hoo. curtains, no cocoa, and a lawyer. a very full spring.']},
+{id:'thusky',name:'Sled Team Liability',steps:[
+ {npc:'thusky',pre:['* ARF! I run a sled-dog delivery service now.','* One of my dogs, making a delivery for me, crashed into a cabin. Am I liable?'],
+  q:['An employee crashes into a cabin while making a delivery for his employer. Is the employer liable?','Yes, under respondeat superior','No, only the employee is liable','No, unless the employer was careless in hiring','Only if the employer was riding along','Employers are vicariously liable for employees’ torts within the scope of employment.'],
+  ok:['* ARF. I’ll pay. And retrain everyone. Including me.'],no:['* ARF? I don’t think so.']},
+ {npc:'thusky',pre:['* Another dog took a two-hour detour across the tundra to visit his girlfriend.','* He crashed THERE. Am I liable for that one?'],
+  q:['An employee abandons his route for a long personal trip and crashes during it. Employer liable?','Generally no, it’s a frolic','Yes, he was still on the clock','Yes, employers are liable for everything employees do','Only if the employer approved the trip','A substantial personal departure (frolic) is outside the scope of employment.'],
+  ok:['* Phew. Also, he’s grounded. From romance.'],no:['* ARF. That seems like a lot.']},
+ {npc:'thusky',pre:['* I hired an independent snow-removal contractor.','* He carelessly damaged someone’s car while clearing snow. Am I liable?'],
+  q:['A hirer’s independent contractor carelessly damages a car. Generally, is the hirer liable?','Generally no','Yes, hirers are always liable','Yes, if the work was paid','Only if the contractor was a dog','Hirers usually aren’t vicariously liable for independent contractors, with exceptions like nondelegable duties.'],
+  ok:['* ARF! That’s a relief. I still sent a sorry note.'],no:['* ARF. Not usually.']}],
+ after:['* ARF! The deliveries are on time. Mostly. Squirrels exist.']},
+{id:'tfrost',name:'Off-Piste',steps:[
+ {npc:'tfrost',pre:['* A skier sued a resort. The jury found her 80% at fault, the resort 20%.','* Damages: $10,000. Pure comparative fault state. What does she get?'],
+  q:['Pure comparative fault: the plaintiff is 80% at fault, damages are $10,000. Her recovery?','$2,000','$0','$8,000','$10,000','Pure comparative fault reduces recovery by the plaintiff’s share but never bars it.'],
+  ok:['* $2,000. Enough for a very nice helmet.'],no:['* Check your math. Carefully. On a calculator.']},
+ {npc:'tfrost',pre:['* Different state. There, a plaintiff recovers only if she’s NOT more at fault than the defendant.','* She’s 60% at fault. Damages $10,000.'],
+  q:['A plaintiff may recover only if her fault isn’t greater than the defendant’s. She is 60% at fault; damages are $10,000. Recovery?','$0','$4,000','$6,000','$10,000','Under modified comparative fault, a plaintiff more at fault than the defendant recovers nothing.'],
+  ok:['* Nothing. Harsh. Snowy. Legal.'],no:['* Hm. Not in that state.']},
+ {npc:'tfrost',pre:['* Last. A skier signed a waiver of all negligence claims.','* But the resort acted RECKLESSLY. Does the waiver cover that?'],
+  q:['A ski waiver releases negligence claims. The resort acted recklessly. Does the waiver bar her claim?','No, not for recklessness','Yes, she signed it','Yes, if it was in bold print','Only if she was an adult','Public policy generally bars releasing liability for intentional or reckless misconduct.'],
+  ok:['* Right. Waivers have limits. Like the bunny slope.'],no:['* Waivers aren’t magic. Try again.']}],
+ after:['* Season’s almost over. My ice-pack budget is not.']},
+{id:'treason',name:'Statutes and Things That Speak',steps:[
+ {npc:'treason',pre:['* Hello again. A statute requires lodges to post “thin ice” signs to protect skaters.','* The lodge didn’t. A skater fell through. Is that negligence per se?'],
+  q:['A statute requiring “thin ice” signs protects skaters. A lodge ignores it, and a skater falls through. Negligence per se?','Yes, the statute fits the harm','No, statutes never set the standard of care','No, the skater should have known about the ice','Only if the lodge was criminally prosecuted','Negligence per se applies when the plaintiff is in the protected class and suffers the harm the statute aimed to prevent.'],
+  ok:['* Yes. I would have posted two signs. Reasonably.'],no:['* Hm. Read the statute again.']},
+ {npc:'treason',pre:['* An icicle fell from the lodge’s roof onto a guest. No one knows exactly why.','* The lodge controls its roof. Can the jury infer negligence?'],
+  q:['An icicle falls from a roof the lodge controls onto a guest. No direct proof of carelessness. Can the jury infer negligence?','Yes, under res ipsa loquitur','No, the guest must prove exactly what went wrong','No, icicles fall without anyone being negligent','Only if a statute was violated','Res ipsa: the event usually means negligence, and the defendant controlled the instrumentality.'],
+  ok:['* The thing speaks for itself. It said “drip.”'],no:['* Hm. The icicle is trying to tell you something.']},
+ {npc:'treason',pre:['* Last. A driver crossed the center line, violating a statute.','* But only to avoid a moose that leapt into the road.'],
+  q:['A driver crosses the center line in violation of a statute to avoid a moose that suddenly leapt out. Negligence per se?','No, the violation is excused by the emergency','Yes, any statutory violation is negligence per se','Yes, the driver chose to cross the line','Only if the moose was hurt','A statutory violation can be excused, for instance by a sudden emergency the actor didn’t create.'],
+  ok:['* Correct. The moose agrees. (The moose is fine.)'],no:['* Hm. That seems unreasonable. And I would know.']}],
+ after:['* I’ve been asked to be a juror. I said I’d be the reasonable one.']},
+{id:'tbear',name:'Duty to Rescue?',steps:[
+ {npc:'tbear',pre:['* Grr. A guest at a different lodge saw a stranger fall through the ice.','* He did nothing. Just watched. Is he liable?'],
+  q:['A bystander with no relationship to a stranger watches her fall through ice and does nothing. Liable?','No, there’s no duty to rescue','Yes, he could easily have helped','Yes, failing to act is negligence','Only if others were watching too','The traditional rule imposes no general duty to aid strangers in peril.'],
+  ok:['* Grr. Not liable. Still a terrible person.'],no:['* Grr. Morally, sure. Legally, no.']},
+ {npc:'tbear',pre:['* I’m an innkeeper. A guest collapsed in my lobby.','* Do I have to help?'],
+  q:['A guest collapses in an inn’s lobby. Does the innkeeper owe a duty to help?','Yes, it\u2019s a special relationship','No, there’s never a duty to aid anyone','Only if the innkeeper caused the collapse','Only if the guest paid in advance','Special relationships, such as innkeeper and guest, create affirmative duties of reasonable aid.'],
+  ok:['* Grr. I helped. Gave him cocoa. And called Dr. Frost.'],no:['* GRR. Innkeepers are special.']},
+ {npc:'tbear',pre:['* A mother bear watched her cub get hit by a careless snowmobiler.','* She was right there. She’s devastated. Can she recover?'],
+  q:['A mother is present and sees her child injured by a careless driver. Bystander emotional distress claim?','Likely yes','No, emotional distress is never recoverable','No, she wasn’t physically touched','Only if she was in the path of the snowmobile','Dillon and Thing allow close relatives who witness the injury to recover for emotional distress.'],
+  ok:['* Grr. She’ll recover. The cub too. Cubs bounce.'],no:['* GRR. Think about who saw what.']}],
+ after:['* Grr. The lodge has a defibrillator now. And a duty. Both on the wall.']},
+{id:'totto',name:'Damages Thaw',steps:[
+ {npc:'totto',pre:['* two careless skaters caused a crash: one 70% at fault, the other 30%.','* damages: $100,000. the 30% skater is broke.','* in a joint and several liability state, how much can the victim get from the 70% skater?'],
+  q:['Joint and several liability: D1 is 70% at fault, D2 30%. D2 is broke. Damages are $100,000. How much can the plaintiff collect from D1?','$100,000','$70,000','$30,000','$50,000 (half)','Under joint and several liability, the plaintiff can collect the whole judgment from any one defendant.'],
+  ok:['* the whole thing! D1 can seek contribution from D2. if D2 ever has money.'],no:['* not in a joint and several state.']},
+ {npc:'totto',pre:['* i sprained my flipper. the doctor said: rest it.','* i went ice fishing instead. it got way worse.','* does that change what i can recover?'],
+  q:['A plaintiff ignores simple medical advice, and the injury gets much worse. Effect on damages?','Reduced, for failing to mitigate','None, since the defendant caused the original injury','Increased, for the added suffering','Eliminated entirely','A plaintiff can’t recover for harm she could reasonably have avoided.'],
+  ok:['* oops. lesson learned. rest is a legal duty. kind of.'],no:['* hm. i don’t think that helps me.']},
+ {npc:'totto',pre:['* last one. the skater who hit me was careless. just careless.','* can i get punitive damages?'],
+  q:['The defendant was merely careless. Can the jury award punitive damages?','No, mere carelessness isn’t enough','Yes, any tort allows punitive damages to be awarded','Yes, if the injury was serious','Only if the defendant is wealthy','Punitive damages punish outrageous conduct; ordinary negligence doesn’t qualify.'],
+  ok:['* fair. i’ll settle for compensatory. and a fish.'],no:['* hm. that seems too much for just careless.']}],
+ after:['* i’m all healed! i caught three fish. they’re suing.']},
+];
+
+/* ---------- ice palette for igloo and hall (and the frozen dungeon) ---------- */
+function cTileIce(g,t,x,y,sx,sy,ts,dg,R,h){
+  if(!dg){switch(t){
+    case 'k':R('#d8eef9',0,0,16,16);R('#bfe0f2',0,(y%2)*8+3,16,1);R('#bfe0f2',(h%3)*5,0,1,8);if(h%5===0)R('#ffffff',(h>>3)%12+2,(h>>7)%12+2,2,1);return 1;
+    case 'K':R('#a7d3ec',0,0,16,16);R('#86bddc',0,7,16,1);R('#86bddc',(y%2)*8,0,1,7);R('#86bddc',(y%2)*8+4,8,1,8);R('#e6f6ff',0,0,16,2);return 1;
+    case 'Q':R('#a7d3ec',0,0,16,16);R('#eaf8ff',3,2,10,9);R('#ffffff',4,3,3,2);return 1;
+    case 'e':R('#a7d3ec',0,0,16,16);R('#2f5a7a',0,2,16,11);if(x%3===1)R('#e6f6ff',2,5,9,1);if(x%3===2)R('#e6f6ff',1,8,11,1);if(x%4===0)R('#e6f6ff',3,10,6,1);return 1;
+    case 'd':R('#d8eef9',0,0,16,16);R('#9fd3f0',1,3,14,7);R('#cfeeff',1,3,14,2);R('#7fb8d8',2,10,2,5);R('#7fb8d8',12,10,2,5);return 1;
+    case 'j':R('#d8eef9',0,0,16,16);R('#9fd3f0',3,2,10,13);R('#cfeeff',2,2,12,3);return 1;
+    case 'z':R('#d8eef9',0,0,16,16);R('#bfe9ff',5,3,6,11);R('#ffffff',6,1,4,4);R('#9fd3f0',4,13,8,3);return 1;
+    case 'X':R('#d8eef9',0,0,16,16);R('#7fb8d8',2,4,12,10);return 1;
+    case 'r':R('#c8b090',0,0,16,16);R('#a89070',(h%3)*4+2,(h>>3)%10+2,3,2);R('#e0cca8',1,1,14,1);return 1;
+    case 'v':R('#d8eef9',0,0,16,16);R('#8a5a30',3,4,10,11);R('#6ad6ff',5,2,6,3);return 1;
+  }return 0}
+  switch(t){
+    case 'k':R('#12304a',0,0,16,16);R('#0b2033',(h%4)*4,0,1,16);R('#0b2033',0,(y%2)*8+5,16,1);if(h%6===0)R('#6ad6ff',(h>>3)%12+2,(h>>7)%12+2,1,1);return 1;
+    case 'K':case 'Q':R('#0d2a44',0,0,16,16);R('#081c30',0,6,16,1);R('#081c30',0,12,16,1);for(let k=1;k<16;k+=5)R('#cfeeff',k,13,2,3-((k+x)%2));
+      if(x%4===2&&y===0){R('#3a4a5a',7,6,2,8);R(Math.floor(ts/120+x)%2?'#6ad6ff':'#bff4ff',6,1,4,5);R('rgba(106,214,255,.25)',2,0,12,14)}return 1;
+    case 'e':R('#0d2a44',0,0,16,16);R('#061626',1,2,14,11);R(Math.floor(ts/200+x)%3?'#6ad6ff':'#bff4ff',2+(x*5)%9,5,4,1);R('#6ad6ff',3+(x%3),9,3,1);return 1;
+    case 'd':R('#12304a',0,0,16,16);R('#5a9cc4',4,0,8,15);R('#9fd3f0',5,0,3,15);R('#3a7aa4',4,14,8,2);return 1;
+    case 'j':R('#12304a',0,0,16,16);R('#2a4a6a',2,4,12,11);R('#6ad6ff',3,4,10,1);R(Math.floor(ts/150)%2?'#6ad6ff':'#bff4ff',6,0,4,4);return 1;
+    case 'z':R('#12304a',0,0,16,16);R('#3a4a5a',4,10,8,6);R(Math.floor(ts/110+x)%2?'#6ad6ff':'#bff4ff',5,3,6,7);return 1;
+    case 'X':R('#12304a',0,0,16,16);R('#1a3a5a',2,4,12,10);return 1;
+    case 'r':R('#1a3a5a',0,0,16,16);R('#24506e',1,1,14,14);return 1;
+  }
+  return 0}
+// gentle snowfall over outdoor tundra maps
+function cSnow(g,cv,ts,k){g.fillStyle='rgba(255,255,255,.85)';const n=Math.round(70*k);for(let i=0;i<n;i++){const sp=.012+(i%5)*.004,x=((i*73+ts*sp*(1+(i%3)))%(cv.width+20))-10,y=((i*41+ts*(.025+(i%4)*.008))%(cv.height+10))-5,dx=Math.sin(ts/900+i)*3;g.fillRect(Math.round(x+dx),Math.round(y),i%6===0?2:1,i%6===0?2:1)}}
+// outdoor tundra tiles
+function cTileT(g,t,x,y,sx,sy,ts){
+  const h=cHash(x,y),R=(c,a,b,w,hh)=>{g.fillStyle=c;g.fillRect(sx+a,sy+b,w,hh)},T=TTUN,up=y>0?T[y-1][x]:'C';
+  const snow=()=>{R('#e8f0f8',0,0,16,16);R('#d3e1ee',h%13,(h>>4)%14,2,1);R('#d3e1ee',(h>>8)%13,(h>>12)%13,1,1);if(h%4===0)R('#ffffff',(h>>16)%14+1,(h>>20)%14+1,1,1)};
+  const ice=()=>{R('#a8d8f0',0,0,16,16);R('#c6e8f8',(h%3)*4,2,6,1);R('#c6e8f8',(h>>3)%8+4,9,5,1);R('#8cc4e2',(h>>5)%12,(h>>9)%12,3,1);if((Math.floor(ts/700)+x+y)%9===0)R('#ffffff',(h>>7)%12+2,(h>>11)%12+2,2,1)};
+  switch(t){
+  case '.':snow();break;
+  case ',':snow();R('#b8c9da',(h%9)+2,(h>>4)%8+3,2,2);R('#b8c9da',(h%9)+5,(h>>4)%8+7,2,2);break;
+  case '=':R('#cfdbe7',0,0,16,16);R('#b9c8d7',0,(h%2)*8+7,16,1);R('#dfe8f1',(h>>3)%12,(h>>6)%12,3,1);R('#b0c0d0',(h>>9)%12+2,(h>>12)%10+3,2,2);break;
+  case 'i':ice();break;
+  case 'o':ice();R('#1f4e8c',4,4,8,8);R('#2a63a8',5,5,6,6);R('#ff4d6d',9,6,2,2);R('#ffffff',10,2,1,5);break;
+  case '*':ice();if(cHas('charm')){R('#8cc4e2',4,6,8,6);R('#c6e8f8',5,7,6,1)}else{R('#8a5a30',4,5,8,8);R('#6e4a26',4,5,8,2);R('#ffd84a',7,8,2,2);R(Math.floor(ts/250)%2?'#ffffff':'#bff4ff',12,2,2,2)}break;
+  case 'P':R('#9a9aa2',0,0,16,16);R('#b4b4bc',0,0,16,1);R('#ffd84a',0,14,16,2);R('#85858d',(h%2)*8,8,8,1);R('#f0f6fb',(h>>3)%12,(h>>5)%6,3,1);break;
+  case 't':snow();for(let k=1;k<16;k+=4)R('#7a5a3a',k,0,2,16);R('#b0b0b8',0,3,16,2);R('#b0b0b8',0,11,16,2);break;
+  case 'A':snow();R('#5a3a1e',7,12,2,4);R('#1f5e4a',3,7,10,5);R('#1f5e4a',4,3,8,5);R('#1f5e4a',6,0,4,4);R('#f4f8fc',3,7,4,1);R('#f4f8fc',4,3,3,1);R('#f4f8fc',6,0,3,1);R('#174a3a',9,9,3,2);break;
+  case 'a':snow();R('#3b6e5a',2,6,12,9);R('#f4f8fc',3,6,8,2);break;
+  case 'x':snow();R('#7d8794',3,5,10,9);R('#5d6774',3,11,10,3);R('#f4f8fc',4,4,8,2);break;
+  case 'C':R('#5d6b7e',0,0,16,16);R('#4a5768',0,(h%3)*5+3,16,1);R('#6e7d92',(h>>3)%10,(h>>6)%10,4,2);if(up!=='C'){R('#f0f6fb',0,0,16,3);R('#f0f6fb',(h%4)*3,3,3,2)}break;
+  case 'R':R('#a0383a',0,0,16,16);R('#7e2a2c',0,5,16,1);R('#7e2a2c',0,11,16,1);if(up!=='R'){R('#f4f8fc',0,0,16,4);R('#f4f8fc',(h%4)*3+1,4,3,2)}break;
+  case 'L':R('#2f6b6b',0,0,16,16);R('#245656',0,5,16,1);R('#245656',0,11,16,1);if(up!=='L'){R('#f4f8fc',0,0,16,4);R('#f4f8fc',(h%4)*3+1,4,4,2)}break;
+  case 'I':R('#9fd3ff',0,0,16,16);R('#c6e8ff',(x%2)*8,0,8,8);R('#7fb8e8',0,15,16,1);R('#ffffff',(h%12)+1,(h>>4)%12+1,2,2);break;
+  case 'J':R('#c8e8f8',0,0,16,16);R('#9fcfe8',0,7,16,1);R('#9fcfe8',(y%2)*8,0,1,7);R('#9fcfe8',(y%2)*8+4,8,1,8);if(T[y+1]&&T[y+1][x]!=='J')for(let k=1;k<16;k+=4)R('#ffffff',k,13,2,3);break;
+  case 'W':R('#8a5a30',0,0,16,16);for(let k=0;k<16;k+=4){R('#6e4a26',0,k+3,16,1);R('#a87040',0,k,16,1)}break;
+  case 'w':R('#8a5a30',0,0,16,16);for(let k=0;k<16;k+=4)R('#6e4a26',0,k+3,16,1);R('#4a3018',3,2,10,10);R(`rgba(255,200,90,${.85+.15*Math.sin(ts/300+x)})`,4,3,8,8);R('#4a3018',7,3,1,8);R('#f4f8fc',3,12,10,2);break;
+  case 'D':if(up==='u'){snow();R('#cfe4f2',2,0,12,16);R('#2b3a4a',4,4,8,12);R('#1a2430',5,5,6,11)}
+    else if(up==='J'){R('#c8e8f8',0,0,16,16);R('#5a8fb8',2,1,12,15);R('#7fb8e8',3,2,10,14);R('#ffffff',10,9,2,2)}
+    else{R('#8a5a30',0,0,16,16);R('#5a3a1e',2,1,12,15);R('#6e4a26',3,2,10,14);R('#ffd84a',10,9,2,2)}break;
+  case 'u':snow();{const top=up!=='u';R('#f4f8fc',top?2:0,top?4:0,top?12:16,top?12:16);R('#cfe0ee',0,top?9:6,16,1);R('#cfe0ee',(x%2)*6+3,top?5:0,1,top?4:6);R('#cfe0ee',(x%2)*6+6,top?10:7,1,6)}break;
+  case 'S':snow();R('#6e4a26',7,9,2,7);R('#b5834a',2,2,12,8);R('#8a5a30',3,4,10,1);R('#8a5a30',3,7,8,1);R('#f4f8fc',2,1,12,2);break;
+  case 'm':snow();R('#ffffff',4,8,8,7);R('#ffffff',5,3,6,6);R('#000',6,5,1,1);R('#000',9,5,1,1);R('#ff9e5e',7,6,3,1);R('#ff4d6d',4,8,8,1);R('#6e4a26',2,9,2,1);R('#6e4a26',12,9,2,1);break;
+  case 'f':snow();R('#5a3a1e',1,11,14,3);R('#7a5a3a',3,13,10,2);{const k=Math.floor(ts/110+x)%3;R('#ff6a3d',3+(k===1?1:0),4,10,8);R('#ffd84a',5,6-(k===2?1:0),6,6);R('#ffffff',7,9,2,2);R(`rgba(255,160,60,${.18+.08*Math.sin(ts/200)})`,-4,-4,24,22)}break;
+  case 'h':{R('#5fc9c9',0,0,16,16);const o=Math.floor(ts/300+x)%6;R('#8fe0de',o,3+(y%2)*6,6,1);R('#8fe0de',(o+8)%16,10-(y%2)*4,5,1);const st=(Math.floor(ts/90)+x*7+y*3)%24;if(st<12)R(`rgba(255,255,255,${.5-st/26})`,(x*5)%10+2,12-st,3,3);break}
+  case 'l':snow();R('#333',7,3,2,13);R('#555',6,14,4,2);R('#ffb347',5,0,6,4);R(`rgba(255,180,70,${.18+.06*Math.sin(ts/400+x)})`,1,-2,14,12);break;
+  case 'F':snow();R('#8a5a30',0,6,16,2);R('#8a5a30',0,11,16,2);R('#6e4a26',2,4,2,11);R('#6e4a26',10,4,2,11);R('#f4f8fc',0,5,16,1);break;
+  case 'B':R('#9b6b3a',0,0,16,16);for(let k=2;k<16;k+=4)R('#6e4a26',0,k,16,1);break;
+  default:snow();
+  }
+}
+
+/* ---------- region registration ---------- */
+const PM='pimentel';
+REGIONS.torts={key:'campT',name:'TORTS TUNDRA',course:'TORTS',world:'torts',maps:TMAPS,npcs:TNPC,q:[TQ1,TQ2],stu:[TSTU,TSTU2],
+ prof:'pimentel',start:['tundra',8,31,'up'],arrive:['tundra',8,31,'up'],out:'tundra',final:'hall',finalReward:'uke',mus:{duel:'tduel',dungeon:'icecave',boss:'tboss'},
+ block:{npc:'tyeti',q:'tyeti',at:[36,22],to:[37,21]},acc:[.89,.93],hint3:['towel','* (Down at the hot spring, someone is warming up a towel for you.)'],
+ lockedNote:'“LECTURES RESUME WHEN EVERYONE IN TOWN HAS BEEN TREATED REASONABLY.”',
+ intro:[[null,'* The train hisses to a stop in deep snow.'],[null,'* Cold air. Colder rules.'],[null,'* Welcome to the TORTS TUNDRA.'],[null,'* Watch your step. The ice is slippery, and everything here is somebody’s duty of care.'],['tguide','* Ahem. Over here, by the bonfire. I am THE RESTATEMENT. Talk to me.']],
+ guide:n=>[[n.id,'* I am THE RESTATEMENT (SECOND) OF TORTS. Section 1: hello.'],[n.id,`* ${SEM()===2?'Spring':'Fall'} semester. Neighbors helped: ${cDoneN()} of 10.${cDoneN()>=10?' PROF. PIMENTEL’S LECTURE HALL is open, up north. Dress warmly.':' Look for a ! over their heads. Some live in the lodge, the cabin, and the igloo.'}`],[n.id,`* Students with a sword over their heads want to duel.${SEM()===2?' A new 3L is in the IGLOO.':''} The YETI guards the pass to the southeast.`],[n.id,'* On ice, you slide until something stops you. Rocks, fishing holes, and otters all count.'],[n.id,`* Equip up to ${cSlots()} items with X or ☰. Your bag is shared with Civ Pro Prefecture. The train goes back there from the platform.`]],
+ profNotYet:'* The lecture hall isn’t ready. Neither, I think, are you.',profLater:'* Take your time. Reasonable time, of course.',
+ profAgain:[[PM,'* Back for another final? I admire the duty of care you show yourself.'],[PM,'* A retake, then. For practice. And for the ukulele solo.']],
+ profPre:[[[PM,'* Ah, welcome. Sit anywhere. Not on that. That’s an icicle.'],[PM,'* The whole tundra says you’ve treated everyone reasonably. The Yeti even smiled.'],[PM,'* Your classmates are here. Everyone takes the same final.'],[PM,'* When I’m on a streak, I hum a little tune. It restores my stamina.'],[null,'* (PROF. PIMENTEL heals 1 life for each right answer during a streak, up to 5.)'],[PM,'* And a good streak shields me from a careless answer or two.'],[null,'* (The professor’s streak gives a shield, just like yours.)'],[PM,'* Shall we begin?']],
+   [[PM,'* Spring. In the tundra, spring is mostly a legal fiction.'],[PM,'* Four classmates this time. Products, strict liability, defamation, damages. All of it.'],[null,'* (PROF. PIMENTEL: heals on streaks, shields on streaks, and answers sharper than ever.)'],[PM,'* Ready?']]],
+ dungeonLines:[[null,'* The temperature drops. Then drops again.'],[null,'* Frost crawls up the walls. The desks freeze into pillars of ice.'],[null,'* The board writes itself in frost: FINAL EXAM.'],[PM,'* Duty.'],[PM,'* Breach.'],[PM,'* Begin.']],
+ finalLose:[[PM,'* Not quite. But you were reasonable about it.'],[PM,'* Warm up by the fire, study, and come back.'],[null,'* (Try different items. Talk to the professor to retake it.)']],
+ retake1:[[PM,'* Still sharp. Still warm. Good.'],[null,'* You passed the fall torts final again.']],retake2:[[PM,'* Even in the spring thaw. Impressive.'],[null,'* You passed the spring torts final again.']],
+ win1:got=>[[PM,'* ...'],[PM,'* That was reasonable. More than reasonable.'],[PM,'* Duty, breach, causation, damages. In that order. Every time.'],[null,'* You passed the FALL SEMESTER of TORTS.'],[PM,'* Take this. I play it at the end of every semester. You’ve earned a song.'],...got,[null,'* NEW PROFILE PICTURE UNLOCKED: TUNDRA SURVIVOR.'],[null,'* The wind picks up.'],[PM,'* Ah. Spring semester. I warned you it was a legal fiction.'],[null,'* SPRING SEMESTER has begun in the TORTS TUNDRA.'],[null,'* Everyone has new problems: products, strict liability, defamation, and worse.'],[null,'* A new 3L is waiting in the IGLOO.']],
+ win2:[[PM,'* ...'],[PM,'* Two semesters on the ice. Twenty neighbors made whole.'],[PM,'* The reasonable person would be proud. I asked them.'],[null,'* You passed TORTS.'],[null,'* NEW PROFILE PICTURE UNLOCKED: TUNDRA LEGEND.'],[null,'* TORTS TUNDRA COMPLETE.'],[null,'* (CONTRACTS COAST is still being surveyed. The train is not delayed. It just doesn’t go there yet.)']],
+ tile:(x,y,t,map)=>{
+  if(map==='tundra'){
+   const SIGN={'18,7':['* PIMENTEL LECTURE HALL. DUTY OF CARE IN PROGRESS.'],'38,10':['* SKI LODGE. COCOA, COUCHES, AND A DUTY TO INVITEES.'],'7,13':['* RANGER CABIN. BEWARE OF DOG.','* (The dog is very friendly. The sign is for liability.)'],'9,30':['* TUNDRA STATION. TRAINS TO CIV PRO PREFECTURE.'],'3,22':['* IGLOO VILLAGE. PLEASE KNOCK. THE DOORS ARE MADE OF SNOW.'],'23,26':['* FROZEN LAKE. SLIPPERY WHEN... ALWAYS.','* (Something glints on the far island.)'],'35,26':['* HOT SPRING. ASSUMPTION OF RISK: WARM.']};
+   const say=L=>(campSay(L.map(nar)),true);
+   if(t==='S')return say(SIGN[x+','+y]||['* TORTS TUNDRA. POPULATION: SEVERAL PLAINTIFFS.']);
+   if(t==='*'){if(cHas('charm'))return say(['* An empty satchel, frozen into the ice.']);return campSay([nar('* A satchel is frozen into the ice. You chip it free.'),nar('* Inside: a LAST CLEAR CHANCE CHARM.'),...cGive('charm')]),true}
+   const F={h:['* A hot spring. Steam rises. It smells faintly of pine and comparative fault.'],m:['* A snowman. It has a carrot, two coal eyes, and no legal personality.'],o:['* A fishing hole. A line disappears into the dark water. Something is thinking about it.'],
+    f:['* A bonfire. It is warm, bright, and almost certainly a nuisance to somebody.'],x:['* A rock wearing a snow hat.'],A:['* A pine tree. Snow falls off it onto your head. Assumption of risk.'],C:['* A cliff. The view is nice. The duty to warn is satisfied by the cliff.'],
+    u:['* An igloo. It is very well insulated. It is also very cold.'],t:['* Train tracks. Unlike the Prefecture’s, these trains run on time.'],l:['* A lantern. It casts a warm, reasonable glow.'],F:['* A fence. It marks a boundary. Trespassers, please read it.'],a:['* A snowy shrub.'],i:['* Smooth ice. You can see your reflection. It looks nervous.'],I:['* A roof of solid ice. Somehow, it doesn’t leak.'],J:['* Walls of packed ice blocks.'],L:['* The lodge roof, under a foot of snow.'],R:['* A red cabin roof, wearing snow like a hat.'],W:['* Thick log walls.'],w:['* A warm, glowing window. Someone inside is reading a casebook by the fire.']};
+   if(F[t])return say(F[t]);return undefined}
+  const M=TMAPS[map];
+  if(M&&M.th==='ice'){const F={z:['* An ice sculpture of the reasonable person. It is reasonably cold.'],e:CM.dungeon?['* The board glows with frost runes: FINAL EXAM. DUTY. BREACH. CAUSATION. DAMAGES.']:['* The board says: DUTY, BREACH, CAUSATION, DAMAGES. IN THAT ORDER.'],d:['* A desk carved from ice. Someone wrote “PALSGRAF” on it with a fingernail.'],j:['* An ice lectern. A ukulele leans against it.'],v:['* A barrel of frozen fish.'],K:[],Q:['* A window of clear ice.']};if(F[t])return F[t].length?(campSay(F[t].map(nar)),true):true}
+  if(map==='lodge'||map==='cabin'){const F={C:['* A cocoa bar. Marshmallows are complimentary. Liability is not.'],q:['* A shelf of trail guides and one very worn copy of the Restatement.'],E:['* A bunk bed. The top bunk has a sign: ASSUMPTION OF RISK.'],O:['* A woodstove. Warm. Very warm. Don’t touch. (Warning given.)']};if(F[t])return campSay(F[t].map(nar)),true}
+  return undefined},
+};
 
 /* ================= boot ================= */
 (async function boot(){
