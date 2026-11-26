@@ -545,7 +545,7 @@ function render(){
 }
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
 const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
-const BUILD='build 16 · Nov 23';
+const BUILD='build 18 · Nov 26';
 function titleV(){
   return `<div class="home"><div class="homeL"><div class="title"><div class="potato">${SPUD()}</div><div class="tblock"><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><div class="credit">made by <b>COOPER</b> from Civ Pro</div></div><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
@@ -606,6 +606,8 @@ function newTopic(){
 }
 function say(t,c){G.narr={t,c}}
 function bark(p,kind){if(!p.cpu||Math.random()>.65)return;const L=p.cpu[kind];if(!L)return;const t=pick(L);G.bark={id:p.id,text:t,until:performance.now()+2200};if(G.mode!=='story'&&Math.random()<.6)chatSend(p,t,true)}
+// Story Mode: the more players still in, the faster bot turns go (2 left = 1.0, 4 = ~0.47, 6 = ~0.3, 8 = 0.25).
+const crowdF=()=>{if(!G||G.mode!=='story')return 1;const n=G.players.filter(p=>p.alive).length;return Math.max(.25,Math.pow(2/Math.max(2,n),1.1))};
 function startTurn(){
   const p=G.players[G.turn];G.turnId++;
   if(!G.q||G.q.solved)G.q=Object.assign(genQ(G.topic,G.used),{elim:[],solved:false,passes:0});
@@ -615,7 +617,8 @@ function startTurn(){
     const left=G.q.opts.map((o,i)=>i).filter(i=>!G.q.elim.includes(i)),ci=G.q.opts.findIndex(o=>o.ok);
     const k=p.cpu.acc-(G.q.kind==='Define it'||G.q.kind==='What did it hold?'||G.q.hypo?.05:0);
     const choice=Math.random()<k?ci:pick(left.filter(i=>i!==ci).concat(left.length===1?[ci]:[]));
-    const sp=(p.cpu.spd||1)*spd();let at=(900+Math.random()*G.timer*.5)/sp;at=Math.min(at,G.timer-500);if(Math.random()<.03)at=G.timer+1000;
+    // Bots answer quickly: ~0.6–2.4s (a little longer for hypotheticals). They still miss at their usual rate, just fast.
+    const sp=(p.cpu.spd||1)*spd();let at=(600+Math.random()*1800+(G.q.hypo?900:0))/sp*crowdF();at=Math.max(250,Math.min(at,G.timer-500));
     G.cpuPlan={at:G.timer-at,choice};
   }
   if(p.remote&&p.gone)G.cpuPlan={at:G.timer-1200,choice:-1};
@@ -643,7 +646,7 @@ function answer(i){
     if(q.opts.length-q.elim.length<=1)q.solved=true;
   }
   G.turnsLeft--;if(G.turnsLeft<=0&&!q.solved)q.solved=true;
-  G.phase='reveal';G.wait=isMe(p)&&!G.spectate&&!G.net;G.phaseT=(q.solved?(G.net?3600:3200):(G.net?1900:1500))/spd();
+  G.phase='reveal';G.wait=isMe(p)&&!G.spectate&&!G.net;G.phaseT=(q.solved?(G.net?3600:3200):(G.net?1900:1500))/spd()*(p.cpu?Math.max(.45,crowdF()):1);
   if(isMe(p)&&!ok)shake();
   render();
 }
