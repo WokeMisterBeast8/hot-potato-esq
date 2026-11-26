@@ -287,7 +287,7 @@ function musSetVol(v,mute){S.settings.mvol=v;if(mute!=null)S.settings.mmute=mute
   MUS.master.gain.setTargetAtTime(musVol(),MUS.ctx.currentTime,.05);
   if(musVol()===0)musStop();else{if(MUS.ctx.state!=='running')MUS.ctx.resume();musPlay(MUS.want)}updMusUI()}
 function musUnlock(){if(musVol()===0)return;if(!musInit())return;if(MUS.ctx.state!=='running')MUS.ctx.resume();musPlay(MUS.want)}
-function musFor(){if(V==='game'&&G)return G.mode==='story'?(G.world||'cp'):'vs';if(V==='lobby'||V==='vs')return 'vs';if(V==='worlds')return 'home';if(V==='floors'||V==='dlg')return WSEL;return 'home'}
+function musFor(){if(V==='camp')return CM.mus||'cp';if(V==='game'&&G&&G.camp)return G.camp.mus;if(V==='game'&&G)return G.mode==='story'?(G.world||'cp'):'vs';if(V==='lobby'||V==='vs')return 'vs';if(V==='worlds')return 'home';if(V==='floors'||V==='dlg')return WSEL;return 'home'}
 function musSync(){const id=musFor();if(id!==MUS.want||(!MUS.cur&&MUS.ctx&&musVol()>0))musPlay(id)}
 function updMusUI(){const el=document.getElementById('mus');if(!el)return;const st=S.settings,v=st.mvol==null?.5:st.mvol,off=st.mmute||v===0;
   el.querySelector('#musb').innerHTML=off?'🔇':v<.34?'🔈':v<.67?'🔉':'🔊';el.querySelector('#musb').setAttribute('aria-label',off?'Unmute music':'Mute music');
@@ -538,14 +538,15 @@ function render(){
   else if(V==='boards')app.innerHTML=boardsV();
   else if(V==='records')app.innerHTML=recordsV();
   else if(V==='settings')app.innerHTML=settingsV();
+  else if(V==='camp')campRender();
   if(V!=='boards'&&boardOff)stopBoardWatch();
   if(V==='vs'&&ON&&!pubOff){pubOff=ON.watchPub(l=>{PUBS=l;drawPubs()})}else if(V!=='vs'&&pubOff){pubOff();pubOff=null;PUBS=null}
   musSync();
   achTryShow();
 }
 const onlineBadge=()=>onState==='on'?'<span class="good">● ONLINE</span>':onState==='connecting'?'<span class="dim">○ connecting…</span>':onState==='error'?'<span class="bad">● online unavailable</span>':'<span class="dim">○ offline</span>';
-const MENU=[['STORY MODE','story'],['VS MODE','vs'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
-const BUILD='build 18 · Nov 26';
+const MENU=[['STORY MODE','story'],['VS MODE','vs'],['CAMPAIGN · BETA','camp'],['LEADERBOARDS','boards'],['PROFILE','profile'],['RECORDS','records'],['SETTINGS','settings']];
+const BUILD='build 19 · Nov 25';
 function titleV(){
   return `<div class="home"><div class="homeL"><div class="title"><div class="potato">${SPUD()}</div><div class="tblock"><h1>HOT <span class="h">POTATO</span>,<br>ESQ.</h1><div class="credit">made by <b>COOPER</b> from Civ Pro</div></div><p class="flav">${FLAV[flavI]}</p>
   <nav class="menu">${MENU.map((m,i)=>`<button class="mi ${i===menuI?'on':''}" data-act="menu" data-v="${m[1]}" id="mi-${m[1]}">${m[0]}</button>`).join('')}</nav>
@@ -598,11 +599,11 @@ const meNarr=p=>isMe(p)&&!(G&&G.net);
 const spd=()=>S.settings.speed*(G&&G.spectate?3:1);
 const alive=()=>G.players.filter(p=>p.alive);
 function nextAlive(i){const n=G.players.length;for(let k=1;k<=n;k++){const j=(i+k)%n;if(G.players[j].alive)return j}return i}
-function gameTopics(){const w=G.mode==='story'?G.world:'cp';return topicsFor(w)}
+function gameTopics(){if(G.camp)return topicsFor('cp').filter(t=>!G.camp.topics||G.camp.topics.includes(t.id));const w=G.mode==='story'?G.world:'cp';return topicsFor(w)}
 function newTopic(){
   const all=gameTopics(),ts=all.filter(t=>!G.recent.includes(t.id)),t=pick(ts.length?ts:all);G.recent=[...G.recent,t.id].slice(-5);
   G.topic=t;G.round++;G.turnsLeft=2*alive().length;G.q=null;G.phase='topic';G.phaseT=2200/spd();
-  if(G.round>1){if(G.mode==='story'&&Math.random()<.6){const pr=CPU[PROFOF[G.world]];say(`${pr.n.replace('PROF.','PROFESSOR')}: \u201cLet\u2019s turn to ${t.name}.\u201d`,'')}else say(pick(NARR.topic),'')}
+  if(G.round>1){if(G.mode==='story'&&(!G.camp||G.camp.boss)&&Math.random()<.6){const pr=CPU[PROFOF[G.world]];say(`${pr.n.replace('PROF.','PROFESSOR')}: \u201cLet\u2019s turn to ${t.name}.\u201d`,'')}else say(pick(NARR.topic),'')}
 }
 function say(t,c){G.narr={t,c}}
 function bark(p,kind){if(!p.cpu||Math.random()>.65)return;const L=p.cpu[kind];if(!L)return;const t=pick(L);G.bark={id:p.id,text:t,until:performance.now()+2200};if(G.mode!=='story'&&Math.random()<.6)chatSend(p,t,true)}
@@ -611,7 +612,7 @@ const crowdF=()=>{if(!G||G.mode!=='story')return 1;const n=G.players.filter(p=>p
 function startTurn(){
   const p=G.players[G.turn];G.turnId++;
   if(!G.q||G.q.solved)G.q=Object.assign(genQ(G.topic,G.used),{elim:[],solved:false,passes:0});
-  const base=G.q.hypo?20000:(G.time||S.settings.time)*1000;G.fastT=p.streak;G.timer=p.streak?Math.max(5000,base-5000):base;
+  const base=G.q.hypo?20000:(G.time||S.settings.time)*1000;G.fastT=p.streak;G.timer=p.streak?Math.max(5000,base-5000):base;if(G.camp)campTurn(p);
   G.phase='ask';G.t=G.timer;G.pickI=null;G.res=null;G.cpuPlan=null;G.pop=null;
   if(p.cpu){
     const left=G.q.opts.map((o,i)=>i).filter(i=>!G.q.elim.includes(i)),ci=G.q.opts.findIndex(o=>o.ok);
@@ -634,12 +635,14 @@ function answer(i){
     if(p.redeem){m*=1.25;bonus.push('REDEMPTION')}const runNow=p.run+1;if(runNow>=5){m*=1.5;bonus.push('HOT STREAK ×1.5')}else if(runNow>=3){m*=1.25;bonus.push('STREAK ×1.25')}
     const pts=Math.round(base*m);p.score+=pts;p.redeem=false;G.pop={id:p.id,pts,bonus};
     p.right++;p.run++;q.solved=true;if(isMe(p))G.maxRun=Math.max(G.maxRun,p.run);
-    if(p.run>=3&&!p.streak){p.streak=true;if(meNarr(p))say(shieldOK(G,p)?pick(NARR.streak):NARR_VSSTREAK,'cyan');else{say(`${p.n} has a STREAK: bonus points, shorter clock.`,'cyan');bark(p,'streak')}}
+    if(p.run>=(p.stk||3)&&!p.streak){p.streak=true;if(meNarr(p))say(shieldOK(G,p)?pick(NARR.streak):NARR_VSSTREAK,'cyan');else{say(`${p.n} has a STREAK: bonus points, shorter clock.`,'cyan');bark(p,'streak')}}
     else if(meNarr(p))say(pick(NARR.right),'good');else{say(`${p.n} got it.`,'');bark(p,'right')}
+    if(G.camp)campRight(p);
     G.res='ok';
   }else{
     if(i>=0)q.elim.push(i);q.passes++;
-    if(p.streak&&shieldOK(G,p)){p.streak=false;p.run=0;p.redeem=false;if(meNarr(p))say(pick(NARR.shield),'cyan');else{say(`${p.n}’s streak shatters. No life lost.`,'cyan');bark(p,'wrong')}G.res='shield'}
+    if(p.ward){p.ward=0;p.run=0;p.redeem=false;say(isMe(p)?'Your BLUEBOOK BUCKLER takes the hit. No life lost.':`${p.n}’s shield takes the hit.`,'cyan');G.res='shield'}
+    else if(p.streak&&shieldOK(G,p)){p.streak=false;p.run=0;p.redeem=false;if(meNarr(p))say(pick(NARR.shield),'cyan');else{say(`${p.n}’s streak shatters. No life lost.`,'cyan');bark(p,'wrong')}G.res='shield'}
     else{const hadStreak=p.streak;p.lives--;p.run=0;p.streak=false;p.redeem=true;G.res='hurt';if(hadStreak&&!meNarr(p)&&p.lives>0)say(`${p.n}’s streak ends, and so does a life.`,'');
       if(p.lives<=0){p.alive=false;G.elim.push(p.id);if(meNarr(p))say(pick(NARR.elimYou),'hot');else{say(`${p.n} is out.`,'hot');if(p.cpu){const t=pick(p.cpu.elim);G.bark={id:p.id,text:t,until:performance.now()+2600}}}}
       else if(meNarr(p))say(i<0?pick(NARR.timeout):pick(NARR.wrong),'hot');else{say(`${p.n} ${i<0?'froze':'missed'}. The question passes.`,'');bark(p,i<0?'life':'wrong')}}
@@ -663,7 +666,7 @@ function standings(){const al=G.players.filter(p=>p.alive);return [...al,...G.el
 function lbLocal(key,e){const L=S.lb[key]=S.lb[key]||[];L.push(e);L.sort((a,b)=>b.score-a.score);L.length=Math.min(L.length,10);return L.indexOf(e)}
 const entry=(me,place,extra)=>({name:me.n.slice(0,10),icon:prof().icon,color:prof().color,score:me.score,place,won:place===1,date:new Date().toLocaleDateString(),...extra});
 function endGame(){
-  stopLoop();const me=G.players.find(isMe),st=standings(),place=st.indexOf(me)+1;
+  stopLoop();if(G.camp){campEnd();return}const me=G.players.find(isMe),st=standings(),place=st.indexOf(me)+1;
   S.played++;S.bestRun=Math.max(S.bestRun,G.maxRun);
   if(G.mode==='story'){
     const w=G.world,f=G.floor,key=w+'-'+f,won=me.alive,fl=WBY[w].floors[f];
@@ -699,7 +702,7 @@ function loopFn(){
     if(G.cpuPlan&&G.t<=G.cpuPlan.at){const c=G.cpuPlan.choice;G.cpuPlan=null;answer(c);return}
     if(G.t<=0)answer(-1);return}
   if(G.phase==='reveal'&&!G.wait){G.phaseT-=dt;if(G.phaseT<=0)advance()}
-  if(G.bark&&now>G.bark.until){G.bark=null;const b=document.getElementById('bark');if(b)b.remove()}
+  if(G&&G.bark&&now>G.bark.until){G.bark=null;const b=document.getElementById('bark');if(b)b.remove()}
 }
 function updTimer(t,tot){const bar=document.getElementById('tbar');if(bar)bar.style.width=Math.max(0,t/tot*100)+'%';const tn=document.getElementById('tnum');if(tn)tn.textContent=Math.max(0,Math.ceil(t/1000))+'s';const sp=document.getElementById('spud');if(sp){const k=t/tot;sp.className='spud'+(k<.3?' h3':k<.6?' h2':'')}}
 function startLoop(){stopLoop();last=performance.now();tick=setInterval(loopFn,50)}
@@ -711,18 +714,18 @@ function gameV(g){
   const watching=g.client&&!g.players.some(isMe)&&g.phase!=='over';
   if(g.client&&!g.players.length)return `<div class="box"><h2>JOINING THE MATCH…</h2><p class="vt dim">Grabbing a seat in the gallery. The potato is already moving.</p><button class="back" data-act="leavelobby" id="back">◂ leave</button></div>`;
   const n=g.players.length,act=g.players[g.turn]||g.players[0],q=g.q;
-  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.streak?(shieldOK(g,p)?'shield':'streak'):''} ${p.alive&&p.run>=5?'onfire':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${p.alive&&p.run>=5?'<span class="flames" aria-hidden="true"><i></i><i></i><i></i></span>':''}${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
+  const seats=g.players.map((p,i)=>{const [x,y]=seatPos(i,n);return `<div class="seat ${p.alive?'':'out'} ${i===g.turn&&g.phase!=='over'&&p.alive?'act':''} ${p.ward?'shield':p.streak?(shieldOK(g,p)?'shield':'streak'):''} ${p.alive&&p.run>=5?'onfire':''} ${isMe(p)?'you':''}" style="left:${x}%;top:${y}%"><div class="av">${p.alive&&p.run>=5?'<span class="flames" aria-hidden="true"><i></i><i></i><i></i></span>':''}${crownN(p.id)?crownSvg(crownN(p.id),'oncap'):''}${spr(p.s,p.c)}</div><div class="nm">${nm(p.n)}</div><div class="sc">${p.score}</div><div class="lives">${Array.from({length:p.maxL||5},(_,k)=>k).map(k=>`<i class="${k<p.lives?'':'gone'}"></i>`).join('')}</div><div class="pips" title="streak progress">${[0,1,2].map(k=>`<i class="${p.streak||k<p.run?'on':''}"></i>`).join('')}</div></div>`}).join('');
   const [sx,sy]=seatPos(g.turn,n),px=50+(sx-50)*.55,py=50+(sy-50)*.55;
   let bk='';if(g.bark){const bi=g.players.findIndex(p=>p.id===g.bark.id);if(bi>=0){const [bx,by]=seatPos(bi,n),up=by<50;bk=`<div class="bark ${up?'dn':''}" id="bark" style="left:${Math.min(78,Math.max(22,bx))}%;top:${up?by+14:by-9}%">${esc(g.bark.text)}</div>`}}
   let pop='';if(g.pop){const pi=g.players.findIndex(p=>p.id===g.pop.id);if(pi>=0){const [ox,oy]=seatPos(pi,n);pop=`<div class="ptpop" style="left:${ox}%;top:${oy-6}%">+${g.pop.pts}${g.pop.bonus&&g.pop.bonus.length?`<small>${g.pop.bonus.map(b=>b==='REDEMPTION'?'REDEMPTION ×1.25':b).join(' + ')}</small>`:''}</div>`}}
   const banner=g.phase==='topic'&&g.topic?`<div class="banner"><div><small>ROUND ${g.round} · ${esc(g.topic.course).toUpperCase()}${g.topic.ch?' · CH. '+esc(g.topic.ch):''}</small><b>${esc(g.topic.name).toUpperCase()}</b><small>two full rotations</small></div></div>`:g.paused?`<div class="banner"><div><b>PAUSED</b><small>The potato waits. Impatiently.</small></div></div>`:'';
   const ring=`<div class="ring">${seats}${pop}<div class="spud" id="spud" style="left:${px}%;top:${py}%">${SPUD()}</div>${bk}${banner}</div>`;
-  const where=g.mode==='story'?`${WBY[g.world].name} · FLOOR ${g.floor+1}`:`VS${g.code?' · '+esc(g.code):''}${g.net?' · ONLINE':' · BOTS'}`;
+  const where=g.camp?g.camp.label:g.mode==='story'?`${WBY[g.world].name} · FLOOR ${g.floor+1}`:`VS${g.code?' · '+esc(g.code):''}${g.net?' · ONLINE':' · BOTS'}`;
   const top=`${watching?`<div class="watchbar">👀 SPECTATING · chat and emotes are open${LOBBY&&LOBBY.spec?'':' · you’re seated for the next match'}</div>`:''}<div class="top"><div class="topic"><small>TOPIC · ${g.topic?esc(g.topic.course)+(g.topic.ch?' · coursebook ch. '+esc(g.topic.ch):''):''}</small><b>${g.topic?esc(g.topic.name):''}</b></div>${g.client||g.net?'':`<button class="back" style="min-height:40px;margin:0" data-act="pause" id="pause">${g.paused?'▶ resume':'❙❙ pause'}</button>`}</div><div class="meta">${where} · ROUND ${g.round} · ${Math.max(0,g.turnsLeft)} turns left in this topic</div>`;
   let box='';
   if(g.phase==='over'&&g.mode!=='story')box=vsResultV(g);
   else if(g.phase==='over'){const r=g.result,w=WBY[g.world];box=`<div class="box"><h2 class="${r.won?'gold':''}">${r.won?'FLOOR CLEARED':`ELIMINATED · ${ordinal(r.place)} PLACE`}</h2><p class="code" style="margin:0">${r.score} PTS</p><p class="vt">${r.right} correct · ${r.acc}% accuracy · best run ${g.maxRun}${r.rank>=0?` · <span class="gold">#${r.rank+1} on this floor’s leaderboard</span>`:''}${ON?(r.grank>0?` · <span class="gold">#${r.grank} globally</span> on this floor`:r.grank===-1?' · outside the global top 25 for now':' · sent to the global board'):''}</p><div class="row"><button class="btn gold" data-act="floor" data-v="${g.floor}" id="again">PLAY AGAIN</button>${r.won&&g.floor<2?`<button class="btn" data-act="floor" data-v="${g.floor+1}" id="nextfloor">NEXT FLOOR</button>`:''}<button class="btn" data-act="world" data-v="${g.world}" id="quit">FLOOR SELECT</button></div></div>`}
-  else if(g.phase==='dead')box=`<div class="box"><h2>YOU ARE OUT</h2><p class="vt">${pick(NARR.elimYou)}</p><div class="row"><button class="btn gold" data-act="spectate" id="spect">WATCH THE REST (FAST)</button>${g.mode==='story'?'<button class="btn" data-act="forfeit" id="forfeit">GO HOME</button>':''}</div></div>`;
+  else if(g.phase==='dead')box=`<div class="box"><h2>YOU ARE OUT</h2><p class="vt">${pick(NARR.elimYou)}</p><div class="row"><button class="btn gold" data-act="spectate" id="spect">WATCH THE REST (FAST)</button>${g.mode==='story'?`<button class="btn" data-act="forfeit" id="forfeit">${g.camp?'GIVE UP':'GO HOME'}</button>`:''}</div></div>`;
   else if(q&&g.phase!=='topic'){
     const yours=isMe(act)&&g.phase==='ask'&&!g.spectate&&!(g.client&&g.sentTurn===g.turnId),rev=g.phase==='reveal';
     const opts=q.opts.map((o,i)=>{let c='opt';if(q.elim.includes(i)&&!(rev&&i===g.pickI))c+=' x';if(rev){if(i===g.pickI)c+=g.res==='ok'?' ok':' no';else if(q.solved&&o.ok)c+=' ok'}return `<button class="${c}" data-act="ans" data-v="${i}" id="opt${i}" ${yours&&!q.elim.includes(i)?'':'disabled'}><b>${i+1}</b><span>${esc(o.t)}</span></button>`}).join('');
@@ -974,7 +977,8 @@ function settingsV(){
 
 /* ================= input ================= */
 function act(a,v,el){
-  if(a==='menu'){if((v==='story'||v==='vs')&&!prof().name){go('profile');return}if(v==='story'){G=null;stopLoop();go('worlds')}else{if(v==='boards')loadBoard();go(v)}}
+  if(a==='camp'){campAct(v,el);return}
+  if(a==='menu'){if((v==='story'||v==='vs'||v==='camp')&&!prof().name){go('profile');return}if(v==='story'){G=null;stopLoop();go('worlds')}else if(v==='camp'){G=null;stopLoop();campEnter()}else{if(v==='boards')loadBoard();go(v)}}
   else if(a==='home'){if(LOBBY&&V==='boards'){if(LOBBY.host){act('tolobby');return}V='lobby';render();return}if(LOBBY){leaveLobby();return}stopLoop();G=null;flavI=(flavI+1)%FLAV.length;go('title')}
   else if(a==='icon'){if(!iconUnlocked(+v))return;S.profile.icon=+v;keepName();render()}
   else if(a==='achequip'){const A=ACHBY[v];if(!A||!hasAch(A.id))return;keepName();S.profile.icon=ICONS.indexOf(A.icon);save();const pop=document.getElementById('achpop');if(pop){const b=pop.querySelector('#achequip');if(b){b.textContent='EQUIPPED';b.disabled=true}}if(V==='profile'||V==='title')render()}
@@ -1026,6 +1030,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='joinf')return;e.prevent
 document.addEventListener('input',e=>{if(e.target.id==='nm'){if(S.reg){e.target.value=S.reg;return}S.profile.name=e.target.value.toUpperCase().slice(0,10);NAMEBUMP='';checkName(S.profile.name);const rb=document.getElementById('regb');if(rb)rb.textContent='REGISTER '+(S.profile.name||'NAME')}});
 document.addEventListener('keydown',e=>{
   if(document.getElementById('achpop')){if(e.key==='Escape'){achClose();e.preventDefault()}return}
+  if(V==='camp'){campKey(e,true);return}
   if(e.target.id==='chatin'||e.target.id==='joincode'||e.target.id==='gchatin')return;
   if(['pw1','pw2','lgn','lgp'].includes(e.target.id))return;
   if(e.target.tagName==='INPUT'){if(e.key==='Enter'){if(NAMESTAT.st==='taken')return;keepName();save();go('title')}return}
@@ -1038,6 +1043,471 @@ document.addEventListener('keydown',e=>{
   }
 });
 window.addEventListener('beforeunload',()=>{if(LOBBY&&LOBBY.net&&ON)ON.leaveRoom(LOBBY.code,LOBBY.host)});
+
+/* ================= CAMPAIGN MODE (experimental): CIV PRO PREFECTURE ================= */
+/* A small top-down RPG town. 10 questlines (multiple-choice Civ Pro problems), three student duels
+   (1L/2L/3L, each drops an item), two found items, and a final against the professor. */
+Object.assign(SPR,{
+goose:['...XXX......','..XXoXX.....','..XXXXXoo...','...XXX......','...XX.......','...XX.......','..XXXX......','.XXXXXXXXX..','XXXXXXXXXXX.','.XXXXXXXXXX.','..XXXXXXX...','....o..o....'],
+snail:['o.o.........','X.X.........','XXX...XXXX..','XoX..XoooXX.','XXX.XoXXXoX.','.XX.XoXoXoX.','.XX.XoXXoXX.','.XXXXooooX..','.XXXXXXXXXXX','XXXXXXXXXXXX','............','............'],
+troll:['..X......X..','..XXXXXXXX..','.XXXXXXXXXX.','.XoXXXXXXoX.','.XXXXXXXXXX.','.XXXXooXXXX.','.XoXXXXXXoX.','..XooooooX..','XXXXXXXXXXXX','XXXXXXXXXXXX','.XXX.XX.XXX.','.XX..XX..XX.'],
+moth:['...o....o...','....o..o....','XXX.XXXX.XXX','XXXXXoXoXXXX','XoXXXXXXXXoX','XXXXXXXXXXXX','.XXX.XX.XXX.','..XX.XX.XX..','....XXXX....','.....XX.....','............','............'],
+dog:['XX......XX..','XXX....XXX..','.XXXXXXXX...','.XoXXXXoX...','.XXXXXXXX...','..XXooXX....','...XXXX.....','..XXXXXXXXX.','.XXXXXXXXXXX','.XXXXXXXXXX.','.XX.XX.XX.X.','.XX.XX.XX...'],
+chef:['..XXXXXXXX..','.XXXXXXXXXX.','..XXXXXXXX..','...oooooo...','...XXXXXX...','...XoXXoX...','...XXXXXX...','....XooX....','..XXXXXXXX..','.XXXXXXXXXX.','.XX.XXXX.XX.','....XXXX....'],
+fishy:['............','............','....XXX.....','...XXXXX..X.','.XXXXXXXXXX.','XXoXXXXXXXX.','XXXXXXXXXXXX','.XXXooXXXXX.','..XXXXXXX.X.','....XXX.....','............','............'],
+statue:['....XXXX....','...XXXXXX...','...XoXXoX...','...XXXXXX...','....XXXX....','....XXXX....','...XXXXXX...','...XXXXXX...','..XXXXXXXX..','..XXXXXXXX..','.XXXXXXXXXX.','XXXXXXXXXXXX'],
+paper:['..XXXXXXX...','..XXXXXXXX..','..XooXXXXXX.','..XXXXXXXXX.','..XoooooXXX.','..XXXXXXXXX.','..XoXXXoXXX.','..XXXooXXXX.','..XXXXXXXXX.','..XoooooXXX.','..XXXXXXXXX.','..XXXXXXXXX.'],
+kid1:['...XXXXXX...','..XXXXXXXX..','..XoXXXXoX..','..XXXXXXXX..','...XXooXX...','....XXXX....','..XXXXXXXX..','.XXXXXXXXXX.','.XX.XXXX.XX.','....XXXX....','....X..X....','...XX..XX...'],
+kid2:['..X.XXXX.X..','..XXXXXXXX..','..XooXXooX..','..XXXXXXXX..','...XoooXX...','....XXXX....','..XXXXXXXX..','.XXXXXXXXXX.','.XX.XXXX.XX.','....XXXX....','....X..X....','...XX..XX...'],
+kid3:['...XXXXXX...','..XXXXXXXX..','..XoXXXXoX..','..XXXXXXXX..','...XXXXXX...','....XXXX....','..XXXoXXXX..','.XXXXoXXXXX.','.XX.XoXX.XX.','....XXXX....','....X..X....','...XX..XX...'],
+vend:['XXXXXXXXXXXX','XooooooooXXX','XoXXoXXoXXoX','XooooooooXXX','XoXXoXXoXXoX','XooooooooXoX','XXXXXXXXXXXX','XooooooooXoX','XXXXXXXXXXXX','XoooooooooXX','XXXXXXXXXXXX','XX........XX'],
+buckler:['..XXXXXXXX..','.XXXXXXXXXX.','XXXooXXooXXX','XXXXXXXXXXXX','XXXoooooXXXX','XXXXXXXXXXXX','XXXXooooXXXX','.XXXXXXXXXX.','.XXXXXXXXXX.','..XXXXXXXX..','...XXXXXX...','.....XX.....'],
+cup:['....X..X....','.....X..X...','..XXXXXXXX..','..XooooooXXX','..XXXXXXXX.X','..XXXXXXXX.X','..XXXXXXXXXX','..XXXXXXXX..','..XXXXXXXX..','...XXXXXX...','..XXXXXXXX..','............'],
+pamph:['XXXXX.XXXXX.','XoooX.XoooX.','XXXXX.XXXXX.','XoooX.XooXX.','XXXXX.XXXXX.','XooXX.XoooX.','XXXXX.XXXXX.','XoooX.XooXX.','XXXXX.XXXXX.','XXXXXXXXXXX.','.XXXXXXXXX..','............'],
+});
+Object.assign(BASS,{boss:[[0,0,1],[2,12,1],[3,0,1],[4,0,1],[6,12,1],[7,0,1],[8,0,1],[10,12,1],[11,7,1],[12,0,1],[14,12,1],[15,10,1]]});
+Object.assign(DRUMS,{boss:{k:'x.x...x.x.x...x.',s:'....x.......x.xx',h:'xxxxxxxxxxxxxxxx',o:'..x...x...x...x.'}});
+SONGS.boss=[
+ {title:'Final Exam (Boss Theme)',bpm:156,swing:0,bass:'boss',drums:'boss',arp:'16th',
+  bars:[['Dm9'],['Bbmaj7'],['Gm9'],['A7b9'],['Dm9'],['Ebmaj7#11'],['Em7b5',8,'A7b9',8],['Dm9']],
+  mel:'A5:1 D6:1 F6:2 E6:2 D6:1 C6:1 A5:2 C6:2 D6:4|F6:3 E6:1 D6:2 Bb5:2 F5:2 G5:2 A5:4|G5:1 Bb5:1 D6:2 F6:2 G6:4 F6:1 E6:1 D6:2 Bb5:2|C#6:2 E6:2 G6:2 Bb6:4 A6:2 G6:2 E6:2|D6:1 E6:1 F6:1 A6:1 D7:4 C7:2 A6:2 F6:4|G6:2 Bb6:2 A6:2 G6:2 D6:4 Eb6:2 F6:2|E6:2 G6:2 Bb6:2 A6:2 G6:1 F6:1 E6:2 C#6:4|D6:6 A5:2 D5:4 -:4'},
+ {title:'Final Exam (Second Sitting)',bpm:156,swing:0,bass:'boss',drums:'drive',arp:'16th',
+  bars:[['Gm9'],['Ebmaj7'],['Cm9'],['D7b9'],['Gm9'],['Abmaj7#11'],['Am7b5',8,'D7b9',8],['Gm9']],
+  mel:'D6:1 G6:1 Bb6:2 A6:2 G6:1 F6:1 D6:2 F6:2 G6:4|Bb6:3 A6:1 G6:2 Eb6:2 Bb5:2 C6:2 D6:4|C6:1 Eb6:1 G6:2 Bb6:2 C7:4 Bb6:1 A6:1 G6:2 Eb6:2|F#6:2 A6:2 C7:2 Eb7:4 D7:2 C7:2 A6:2|G6:1 A6:1 Bb6:1 D7:1 G7:4 F7:2 D7:2 Bb6:4|C7:2 Eb7:2 D7:2 C7:2 G6:4 Ab6:2 Bb6:2|A6:2 C7:2 Eb7:2 D7:2 C7:1 Bb6:1 A6:2 F#6:4|G6:6 D6:2 G5:4 -:4'},
+];
+
+/* ---------- town map (40x30). Built from rectangles so rows always line up ---------- */
+const CMAP=(()=>{const W=40,H=30,m=Array.from({length:H},()=>Array(W).fill('.'));
+  const f=(x0,y0,x1,y1,c)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)m[y][x]=c},s=(x,y,c)=>{m[y][x]=c};
+  f(0,0,39,0,'#');f(0,29,39,29,'#');f(0,0,0,29,'#');f(39,0,39,29,'#');
+  f(1,1,10,4,'#');f(29,1,38,4,'#');[[11,1],[12,2],[27,2],[28,1],[11,3],[28,3]].forEach(([x,y])=>s(x,y,'#'));
+  // law school
+  f(13,1,26,3,'R');f(13,4,26,5,'W');[15,17,22,24].forEach(x=>s(x,4,'w'));s(19,5,'D');s(20,5,'D');s(12,5,'b');s(27,5,'b');s(17,7,'S');
+  f(19,6,20,11,'=');
+  // plaza and fountain
+  f(12,12,27,19,'=');f(19,15,20,16,'f');[[12,12],[27,12],[12,19],[27,19]].forEach(([x,y])=>s(x,y,'L'));s(21,10,'S');
+  // library (west) and post office (east)
+  f(2,7,10,8,'R');f(2,9,10,10,'W');s(4,9,'w');s(8,9,'w');s(6,10,'D');f(6,11,6,13,'=');f(6,13,11,13,'=');
+  f(29,7,37,8,'R');f(29,9,37,10,'W');s(31,9,'w');s(35,9,'w');s(33,10,'D');f(33,11,33,13,'=');f(28,13,33,13,'=');
+  // blue house (SW) and bakery (SE)
+  f(3,16,8,17,'R');f(3,18,8,19,'W');s(5,19,'D');s(7,18,'w');f(5,20,11,20,'=');
+  f(31,16,36,17,'R');f(31,18,36,19,'W');s(33,19,'D');s(35,18,'w');f(28,20,33,20,'=');
+  f(19,20,20,22,'=');
+  // river and the troll bridge
+  f(1,23,38,24,'~');s(19,23,'B');s(19,24,'B');s(18,22,'S');
+  // south meadow
+  f(19,25,19,26,'=');s(31,27,'h');
+  [[2,14],[3,13],[9,15],[36,14],[37,13],[30,14],[1,21],[2,22],[37,21],[38,22],[1,15],[38,16],[3,26],[4,27],[6,25],[14,26],[15,27],[24,26],[25,28],[28,25],[34,26],[36,27],[37,25],[11,28],[22,27]].forEach(([x,y])=>s(x,y,'#'));
+  [[10,6],[11,7],[28,6],[29,12],[9,21],[30,21],[13,21],[26,21],[17,26],[33,28]].forEach(([x,y])=>s(x,y,'b'));
+  [[4,5],[7,6],[24,7],[26,8],[14,9],[35,5],[2,12],[15,10],[10,17],[27,22],[13,24],[8,27],[21,26],[29,28],[36,23],[23,21],[16,21]].forEach(([x,y])=>{if(m[y][x]==='.')s(x,y,',')});
+  return m})();
+const CW=40,CH_=30,CT=16,CVW=20,CVH=15;
+const CBLOCK='#RWwDfFSLbh~';
+
+/* ---------- people ---------- */
+// x,y = tile. q = quest id the person gives. stu = student duel. who = portrait/voice name.
+const CNPC=[
+ {id:'syl',n:'THE SYLLABUS',s:'paper',c:'#ffffff',x:22,y:17,v:520,idle:[['* I am THE SYLLABUS.','* Ten townsfolk have procedural problems. Solve all ten and the LAW SCHOOL up north unlocks for finals.','* Three students will also challenge you to duels. Beat them for items. Equip up to two from your bag (X or ☰).']]},
+ {id:'goose',n:'GOOSE McGILLICUDDY',s:'goose',c:'#f4f4f4',x:14,y:14,v:300},
+ {id:'baker',n:'BRIOCHE THE BAKER',s:'chef',c:'#ffd9a0',x:34,y:20,v:420},
+ {id:'snail',n:'SHELBY',s:'snail',c:'#c8a2ff',x:8,y:21,v:180},
+ {id:'crab',n:'DOMICILE',s:'crab',c:'#ff7a5c',x:14,y:22,v:600},
+ {id:'fish',n:'FINNEGAN',s:'fishy',c:'#6ad6ff',x:25,y:23,v:700},
+ {id:'bird',n:'TOURISTA',s:'bird',c:'#ffd84a',x:25,y:14,v:820},
+ {id:'statue',n:'VENUE-S',s:'statue',c:'#d9d9d9',x:16,y:17,v:140},
+ {id:'ghost',n:'THE COMPLAINT',s:'ghost',c:'#cfd8ff',x:23,y:7,v:360},
+ {id:'moth',n:'MOTHBRARIAN',s:'moth',c:'#e8d8a8',x:8,y:11,v:640},
+ {id:'troll',n:'BRIDGET',s:'troll',c:'#7bd96a',x:19,y:23,v:110},
+ {id:'dog',n:'CLERK BISCUIT',s:'dog',c:'#e0a060',x:35,y:12,v:760},
+ {id:'vend',n:'VENDY',s:'vend',c:'#ff4d6d',x:24,y:11,v:250},
+ {id:'l1',n:'PIP, A 1L',s:'kid1',c:'#5ee08f',x:4,y:12,v:560,stu:'l1'},
+ {id:'l2',n:'DOUG, A 2L',s:'kid2',c:'#c58bff',x:34,y:14,v:330,stu:'l2'},
+ {id:'l3',n:'MARGOT, A 3L',s:'kid3',c:'#ff9be1',x:10,y:26,v:470,stu:'l3'},
+];
+const CNPCBY=Object.fromEntries(CNPC.map(n=>[n.id,n]));
+CNPCBY.peterson={id:'peterson',n:'PROF. PETERSON',s:'peterson',c:'',v:260};
+
+/* ---------- items ---------- */
+const CITEMS={
+ buckler:{n:'BLUEBOOK BUCKLER',s:'buckler',c:'#6ad6ff',d:'Start every match shielded: your first miss costs no life. Your streak shield also kicks in after 2 right answers instead of 3.'},
+ gavel:{n:'ECHO GAVEL',s:'gavel',c:'#ffd84a',d:'Each time you answer correctly, the players on either side of you lose a heart.'},
+ outline:{n:'LAMINATED OUTLINE',s:'scroll',c:'#ff9be1',d:'+2 maximum lives in every campaign match.'},
+ coffee:{n:'BOTTOMLESS COLD BREW',s:'cup',c:'#c58a52',d:'+50% time on every question you answer.'},
+ pamph:{n:'RULES PAMPHLET',s:'pamph',c:'#ffffff',d:'At the start of each of your turns, one wrong answer is crossed out.'},
+};
+
+/* ---------- student duels and the final ---------- */
+const CSTU={
+ l1:{n:'PIP',s:'kid1',c:'#5ee08f',acc:.6,spd:.9,lives:3,item:'buckler',label:'DUEL · PIP THE 1L',topics:['cp-courts','cp-div','cp-fq','cp-svc','cp-venue','cp-pj1'],
+  pre:[['l1','* h-hi! i read every footnote this semester.'],['l1','* every. single. one.'],['l1','* will you... duel me? i need the practice.']],
+  win:[['l1','* you beat me fair and square.'],['l1','* here. my BLUEBOOK BUCKLER. it never helped me, but maybe it will help you.']],
+  lose:[['l1','* oh! i won? i won!!'],['l1','* i should tell my study group. i don’t have a study group.']],
+  after:[['l1','* i’m re-reading the footnotes. the footnotes have footnotes.']],
+  right:['i outlined that!','footnote 12!','yes!!'],wrong:['oh no.','that was on page 400...','i panicked.'],life:['ow...','my highlighter!'],streak:['i’m doing it!'],elim:['i’ll... go re-read chapter 3.']},
+ l2:{n:'DOUG',s:'kid2',c:'#c58bff',acc:.74,spd:1.3,lives:3,item:'gavel',label:'DUEL · DOUG THE 2L',topics:['cp-plead','cp-r11','cp-resp','cp-amend','cp-join','cp-cjoin','cp-disc1','cp-disc2','cp-rem'],
+  pre:[['l2','* i’m on law review. i haven’t slept since october.'],['l2','* let’s make this fast. i have a cite check at 4 a.m.']],
+  win:[['l2','* whatever. i was distracted. by sleep. that i didn’t get.'],['l2','* take my ECHO GAVEL. it bangs on its own. it’s keeping me up.']],
+  lose:[['l2','* good. now i can go back to bluebooking.']],
+  after:[['l2','* “Id.” that’s it. that’s the whole citation. i love it.']],
+  right:['id.','see supra.','obviously.'],wrong:['ugh. citation error.','i’m too tired for this.','that’s a law review problem.'],life:['my cite check...','coffee. need coffee.'],streak:['three for three. put it in a footnote.'],elim:['i’m going to sleep for a week.']},
+ l3:{n:'MARGOT',s:'kid3',c:'#ff9be1',acc:.86,spd:1.2,lives:3,item:'outline',label:'DUEL · MARGOT THE 3L',topics:['cp-supp','cp-pj2','cp-pj3','cp-transfer','cp-dispo','cp-trial','cp-app','cp-courts'],
+  pre:[['l3','* I already have a job. I’ve had it since last August.'],['l3','* So this is purely for sport.'],['l3','* Don’t be offended when I win.']],
+  win:[['l3','* Huh. Okay. That’s fair.'],['l3','* Take my LAMINATED OUTLINE. Laminated means it survives anything. Like you, apparently.']],
+  lose:[['l3','* Good game. I mean that in a condescending way.']],
+  after:[['l3','* I’m counting down the days. 180. Not that I’m counting.']],
+  right:['Easy.','Naturally.','I wrote the outline on this.'],wrong:['Rusty.','Senioritis.','I knew that in 2025.'],life:['Hm.','Annoying.'],streak:['Three in a row. Obviously.'],elim:['Fine. I have a job anyway.']},
+};
+
+/* ---------- the ten questlines ---------- */
+// Each step: talk to npc, hear `pre`, answer q [question, correct, wrong, wrong, wrong, explanation], then hear `ok` (or `no`).
+const CQUESTS=[
+{id:'goose',name:'Regret, Without Prejudice',steps:[
+ {npc:'goose',pre:['* HONK.','* I sued the baker over a stale croissant. Federal court. Felt right at the time.','* Now I feel bad. She already filed an ANSWER.','* Can I still just... leave?'],
+  q:['The defendant has served an answer. How can the plaintiff voluntarily dismiss now?','By a stipulation all parties sign, or by court order','By filing a notice of dismissal any time before trial','By notice, within 21 days after the answer','He can’t; once an answer is filed, the case must go to judgment','Rule 41(a): notice dismissal ends once the defendant serves an answer or summary judgment motion. After that, a stipulation or court order is needed.'],
+  ok:['* So I need her to agree, or a judge to sign off.','* HONK. I’ll ask her nicely. (Talk to the BAKER by the bakery.)'],no:['* That’s not what my lawyer said. My lawyer is also a goose, though.']},
+ {npc:'baker',pre:['* The goose wants to call it off? Bless his little heart.','* My lawyer says if the judge just signs a dismissal order and it says nothing else...','* ...what kind of dismissal is that?'],
+  q:['A Rule 41(a)(2) dismissal order that doesn’t say otherwise is:','Without prejudice','With prejudice','An adjudication on the merits','Void until the defendant consents','Unless the order states otherwise, a court-ordered voluntary dismissal is without prejudice.'],
+  ok:['* So he could bring it again someday. Hm.','* Fine. I’ll sign a stipulation. Tell him he owes me a croissant.'],no:['* That doesn’t sound right. And I know dough.']},
+ {npc:'goose',pre:['* She signed! HONK!','* One more thing. Last year I sued her over a muffin and dismissed it by notice.','* If I ever sued on that muffin again and dismissed by notice AGAIN, what happens?'],
+  q:['A plaintiff who already dismissed a claim by notice files a second notice dismissal of the same claim. Effect?','It operates as an adjudication on the merits','It is without prejudice, like the first one','It requires the court’s permission to take effect','It revives the first lawsuit','Rule 41(a)(1)(B): the two-dismissal rule makes the second notice dismissal an adjudication on the merits.'],
+  ok:['* So no more notices for me. I’ll write her a card instead.','* HONK HONK. (That means thank you.)'],no:['* HONK? That seems too easy. Even for me.']}],
+ after:['* I’m writing the baker a card. It just says HONK. She’ll understand.']},
+{id:'snail',name:'Ninety Days of Snail',steps:[
+ {npc:'snail',pre:['* hello...','* i am... a process server.','* the complaint was filed... this morning.','* how long... do i have... to serve it?'],
+  q:['Under Rule 4(m), how long does a plaintiff have to serve the defendant after filing?','90 days','30 days','120 days','One year','Rule 4(m) gives 90 days, extended if the plaintiff shows good cause.'],
+  ok:['* ninety days...','* for a snail... that is... a sprint.','* talk to me... again... i’m going to... the blue house.'],no:['* that... doesn’t feel... right...']},
+ {npc:'snail',pre:['* i made it... to the blue house...','* the defendant... wasn’t home...','* her sixteen-year-old son... who lives there... answered the door.','* can i... leave the papers... with him?'],
+  q:['Can the server leave the summons with the defendant’s 16-year-old son at the home where they both live?','Probably, if he has suitable age and discretion','No, only the defendant herself may receive it in hand','No, the person must be at least 21','Only if the server also mails a copy','Rule 4(e)(2)(B) allows leaving it at the defendant’s home with someone of suitable age and discretion who lives there.'],
+  ok:['* suitable... age... and discretion...','* he seemed... very discreet...'],no:['* i will... think about that... for a while...']},
+ {npc:'snail',pre:['* the plaintiff... asked...','* if she could just... serve the papers... herself...','* she is... very fast...'],
+  q:['Can the plaintiff personally serve the summons and complaint?','No, the server must be a nonparty at least 18','Yes, if she files proof of service','Yes, any adult may serve the papers, parties included','Only with the court’s permission','Rule 4(c)(2): any person who is at least 18 and not a party may serve.'],
+  ok:['* then... it is... my job...','* i feel... purpose...'],no:['* hmm... that would... put me... out of work...']}],
+ after:['* i have... 89 days left... on my next case...','* i’ll make it... probably...']},
+{id:'crab',name:'A Crab With Many Shells',steps:[
+ {npc:'crab',pre:['* click click.','* I’ve lived in nine shells this year.','* I was born in an Ohio shell. Last week I moved into an Idaho shell, and I plan to stay forever.','* Where am I a citizen?'],
+  q:['For diversity purposes, a person’s domicile is established by:','Physical presence plus intent to remain indefinitely','Living in the state continuously for at least one year','The state where the person was born','Registering to vote in that state','A new domicile begins once a person is present and intends to stay indefinitely.'],
+  ok:['* Then I’m an Idaho crab! Click.'],no:['* That doesn’t sound right. And I’ve moved a LOT.']},
+ {npc:'crab',pre:['* I want to sue the Clam in federal court.','* The Clam is a corporation. Incorporated in Delaware, but its officers run it from Ohio.','* I’m from Idaho. Are we diverse?'],
+  q:['Clam Corp. is incorporated in Delaware and run from Ohio. The crab is from Idaho. Complete diversity?','Yes, the Clam is a citizen of Delaware and Ohio only','No, a corporation is a citizen wherever it does business','No, corporations can’t be parties in diversity cases','Only if its shareholders live outside Idaho','§ 1332(c)(1): state of incorporation plus principal place of business (the nerve center).'],
+  ok:['* Click click! No Idaho clams in sight.'],no:['* Hm. The Clam’s lawyer won’t like that argument either.']},
+ {npc:'crab',pre:['* Last question. I’m suing for exactly $75,000.','* For the scratch on my shell. It was a nice shell.'],
+  q:['The crab demands exactly $75,000. Is the amount requirement met?','No, the amount must exceed $75,000','Yes, $75,000 is the minimum','Yes, once interest is added','Yes, if the demand is in good faith','§ 1332(a): the amount must exceed $75,000, exclusive of interest and costs.'],
+  ok:['* So I’ll ask for $75,001. It’s about the principle.','* And the dollar.'],no:['* Are you sure? I counted with my claws.']}],
+ after:['* My new shell is the Idaho shell. I’ll be here a while. Probably.']},
+{id:'fish',name:'Swimming Upstream',steps:[
+ {npc:'fish',pre:['* blub.','* I got sued in STATE court. On a FEDERAL claim.','* I want to swim upstream into federal court. Who gets to do that?'],
+  q:['Who may remove a case from state court to federal court?','Only the defendants','Either party, at any time','Defendants, and plaintiffs facing a counterclaim','Only the state judge, by transfer','§ 1441(a) gives the removal right to defendants only.'],
+  ok:['* I’m the defendant! I can do it! blub!'],no:['* blub? that’s fishy.']},
+ {npc:'fish',pre:['* I was served on Monday.','* How long do I have to remove?'],
+  q:['A defendant generally must remove within:','30 days after receiving the complaint through service','21 days after service','Within one year after the case was filed in state court','Any time before trial','§ 1446(b)(1): 30 days from service of the initial pleading.'],
+  ok:['* 30 days. That’s 30 more than my memory span. I’ll write it on a rock.'],no:['* blub... I don’t think so.']},
+ {npc:'fish',pre:['* My cousin got sued in IDAHO state court. Diversity case, $200,000.','* He LIVES in Idaho. Can he remove too?'],
+  q:['A diversity case is filed in Idaho state court against an Idaho citizen. Can he remove it?','No, the forum defendant rule bars it','Yes, within 30 days','Yes, because the amount exceeds $75,000','Only to a federal court outside Idaho','§ 1441(b)(2): a diversity case can’t be removed if a properly served defendant is a citizen of the forum state.'],
+  ok:['* He’ll have to stay in state waters.','* Thanks. blub blub. (That’s fish for “that’s a lot of procedure.”)'],no:['* That doesn’t sound right. He’s a very local fish.']}],
+ after:['* I removed! The federal water is colder. Very formal.']},
+{id:'bird',name:'Tag, You’re It',steps:[
+ {npc:'bird',pre:['* Hi!! I’m visiting from Texas!','* Someone handed me a LAWSUIT at the train station!','* It’s about something that happened back in Texas. Can this town’s court even hear it?'],
+  q:['A Texas resident is personally served while briefly visiting another state, in a suit unrelated to the trip. Personal jurisdiction?','Yes, he was served while present in the state','No, the claim is unrelated to the visit','No, he lacks minimum contacts with the state itself','Only if he owns property there','Burnham: in-state service on an individual (tag jurisdiction) supports jurisdiction.'],
+  ok:['* Ugh. That’s going on a postcard.'],no:['* Really? That’s not what the brochure said.']},
+ {npc:'bird',pre:['* They also sued my COMPANY here. Same Texas thing.','* It’s incorporated in Delaware and run from Texas.','* But we sell a LOT of postcards here! Does that make us “at home”?'],
+  q:['Do large sales in a state make a corporation subject to general jurisdiction there?','No, large sales alone don\u2019t make it at home here','Yes, its sales here are substantial and continuous for years','Yes, because its tourist was tagged there','Yes, if the sales exceed half its business','Daimler and BNSF: substantial business alone doesn’t make a corporation at home.'],
+  ok:['* Phew! Postcards are safe.'],no:['* Wait, really? We’d be at home everywhere!']},
+ {npc:'bird',pre:['* Last one! A customer here bought one of our postcards HERE, and it gave her a paper cut HERE.','* Can she sue the company here?'],
+  q:['The claim arises from the company’s own sales in this state. Can the court hear it?','Yes, specific jurisdiction covers it','No, the company isn’t at home here','Only if one of its officers is served here in person','No, only a Texas court can hear it','A claim arising from forum contacts supports specific jurisdiction.'],
+  ok:['* Okay. Fair. We’ll add a warning to the postcards.','* “CAUTION: EDGES.”'],no:['* Hmm. I don’t think that’s right.']}],
+ after:['* I’m going home soon. I’m never answering the door at a train station again.']},
+{id:'statue',name:'Venue-s de Milo',steps:[
+ {npc:'statue',pre:['* I AM VENUE-S.','* I HAVE NO ARMS. ONLY OPINIONS ABOUT WHERE THINGS SHOULD BE.','* TWO DEFENDANTS LIVE IN DIFFERENT STATES. THE EVENTS HAPPENED IN UTAH. WHERE IS VENUE PROPER?'],
+  q:['Two defendants live in different states. The events happened in Utah. Where is venue proper?','The District of Utah, where the events happened','Either defendant’s home district','Wherever the plaintiff lives','Any district where a defendant is subject to jurisdiction','§ 1391(b)(1) fails (different states), so (b)(2) points to where a substantial part of the events occurred.'],
+  ok:['* CORRECT. I WOULD APPLAUD. BUT.'],no:['* NO. I HAVE STOOD HERE FOR 200 YEARS. I KNOW WHERE THINGS GO.']},
+ {npc:'statue',pre:['* A CASE SITS IN A PROPER VENUE.','* BUT EVERY WITNESS AND DOCUMENT IS IN ANOTHER DISTRICT, WHERE IT COULD HAVE BEEN FILED.','* WHAT DOES ONE MOVE FOR?'],
+  q:['Venue is proper, but another district would be far more convenient. Which motion fits?','Transfer under § 1404(a)','Transfer under § 1406(a)','Dismissal for forum non conveniens','Remand to state court','§ 1404(a) moves a properly venued case for convenience and the interest of justice.'],
+  ok:['* YES. I MYSELF WAS TRANSFERRED HERE FROM A MUSEUM. FOR CONVENIENCE.'],no:['* INCORRECT. I WOULD SHAKE MY HEAD. BUT IT IS STONE.']},
+ {npc:'statue',pre:['* FINAL QUESTION.','* A CASE IS FILED IN AN IMPROPER VENUE. THE STATUTE OF LIMITATIONS HAS RUN, SO DISMISSAL WOULD END THE CLAIM.','* WHAT MAY THE COURT DO?'],
+  q:['Venue is improper, and dismissal would let the limitations period kill the claim. What may the court do?','Transfer under § 1406(a) in the interest of justice','Keep the case, since dismissal would be harsh on the plaintiff','Dismiss with prejudice','Remand the case to state court','§ 1406(a) lets the court transfer instead of dismissing when justice requires.'],
+  ok:['* YOU MAY PROCEED.','* I WOULD WAVE. BUT.'],no:['* NO. TRY AGAIN. I HAVE TIME. I AM A STATUE.']}],
+ after:['* I AM STILL HERE. THIS IS THE PROPER VENUE FOR ME.']},
+{id:'ghost',name:'The Complaint That Haunts',steps:[
+ {npc:'ghost',pre:['* ooooooo...','* i am a complaint.','* my whole body says: “Defendant is liable to plaintiff.” that’s it.','* will i survive a motion to dismiss?'],
+  q:['A complaint says only, “Defendant is liable to plaintiff,” with no facts. Will it survive a 12(b)(6) motion?','No, bare conclusions don’t make a claim plausible','Yes, notice pleading requires nothing more','Yes, if it states the amount demanded','Only if the defendant can reasonably guess what it means','Twombly and Iqbal: conclusions are set aside; the remaining facts must make the claim plausible.'],
+  ok:['* oooo... i need FACTS. who, what, when...'],no:['* ooo... i don’t think that’s how it works anymore...']},
+ {npc:'ghost',pre:['* my lawyer added a line: “defendant committed fraud.”','* no who. no what. no when.','* which rule is mad at me now?'],
+  q:['A complaint alleges “fraud” without saying who said what, or when. Which rule is the problem?','Rule 9(b)','Rule 8(a)(1)','Rule 10(a)','Rule 12(f)','Rule 9(b) requires fraud and mistake to be pleaded with particularity.'],
+  ok:['* particularity... i’ll add the date... and the words...'],no:['* oooo... not that one...']},
+ {npc:'ghost',pre:['* the other side served a Rule 11 motion on my lawyer.','* ten days later, he withdrew the bad part.','* can they still file the motion?'],
+  q:['A Rule 11 motion is served. Ten days later, the challenged claim is withdrawn. Can the motion now be filed?','No, the withdrawal came within the 21-day safe harbor','Yes, at any time after the motion is served on the lawyer','Yes, but only to recover fees','Only with the court’s permission','Rule 11(c)(2): the movant must wait 21 days; withdrawing within that time avoids the motion.'],
+  ok:['* i feel... lighter...','* i’m becoming a well-pleaded complaint. goodbye, ghost life.'],no:['* ooooo... that sounds scary... and wrong...']}],
+ after:['* i have facts now. dates. names. i am barely even a ghost anymore.']},
+{id:'moth',name:'Overdue Discovery',steps:[
+ {npc:'moth',pre:['* shhh. this is a library.','* a patron in a $2,000 case asked to see every book i have lent in ten years.','* it would cost me $50,000 to dig it all out. do i have to?'],
+  q:['In a $2,000 case, a party demands ten years of records that would cost $50,000 to produce. Best objection?','The request isn’t proportional to the needs of the case','The records would be inadmissible hearsay at any later trial','The records are automatically privileged','No objection; all relevant material must be produced','Rule 26(b)(1) limits discovery to what is relevant and proportional, considering the amount at stake and the burden.'],
+  ok:['* proportional. i like that word. it is very quiet.'],no:['* shhh... that isn’t right.']},
+ {npc:'moth',pre:['* a lawyer wrote memos in my reading room. her strategy. her theories of the case.','* the other side wants them. must she hand them over?'],
+  q:['A lawyer’s memos with her mental impressions and legal theories, prepared for litigation, are:','Opinion work product, almost always protected','Fully discoverable, like any other document','Discoverable whenever relevant to a claim or defense','Protected only if notarized','Rule 26(b)(3)(B): courts must protect a lawyer’s mental impressions, conclusions, opinions, and legal theories.'],
+  ok:['* i’ll keep them on the restricted shelf. next to the dictionaries.'],no:['* hmm. that would make lawyers very nervous.']},
+ {npc:'moth',pre:['* now someone has sent me forty interrogatories. without asking the court.','* how many must i answer?'],
+  q:['Without leave or agreement, a party may serve how many interrogatories on another party?','25, counting discrete subparts','10, counting discrete subparts','50, counting discrete subparts','As many as are relevant','Rule 33(a)(1): 25 including discrete subparts.'],
+  ok:['* twenty-five. i’ll answer them alphabetically.','* thank you. you may now be quiet in my library.'],no:['* shhh. no.']}],
+ after:['* shhh. i’m reading the Federal Rules. it is a page-turner.']},
+{id:'troll',name:'Troll Toll Joinder',steps:[
+ {npc:'troll',pre:['* NOBODY CROSSES MY BRIDGE WITHOUT ANSWERING.','* A GOAT SUED ME OVER A CRASH ON THIS BRIDGE.','* I THINK THE GOAT CAUSED IT. IF I DON’T SUE THE GOAT BACK NOW, CAN I SUE LATER?'],
+  q:['A defendant’s claim against the plaintiff arises from the same crash. If she doesn’t assert it now, generally:','It is a compulsory counterclaim and is barred later','It stays available, since counterclaims are optional','It can be raised for the first time on appeal','It becomes a crossclaim automatically','Rule 13(a): a counterclaim from the same transaction or occurrence must be asserted or it is lost.'],
+  ok:['* THEN I COUNTERCLAIM. TAKE THAT, GOAT.'],no:['* WRONG. THE BRIDGE STAYS SHUT.']},
+ {npc:'troll',pre:['* THE BRIDGE BUILDER MIGHT HAVE TO PAY ME BACK FOR ANYTHING I OWE THE GOAT.','* THE BUILDER IS NOT IN THE CASE. WHAT DO I DO?'],
+  q:['The defendant says a nonparty may be liable to her for all or part of what she owes the plaintiff. What can she do?','Implead the nonparty as a third-party defendant','File a crossclaim against the nonparty','Move to dismiss for failure to join a party','Bring statutory interpleader against the nonparty','Rule 14(a): a defendant may bring in a nonparty who may be liable to it for the claim.'],
+  ok:['* I WILL IMPLEAD THE BUILDER. HE WILL HATE THAT.'],no:['* NO. THAT IS NOT HOW THE BUILDER GETS IN.']},
+ {npc:'troll',pre:['* LAST ONE. THE GOAT IS FROM IOWA. I AM FROM NEBRASKA. IT IS A DIVERSITY CASE.','* THE BUILDER I IMPLEADED IS FROM IOWA.','* NOW THE GOAT WANTS TO SUE THE BUILDER TOO. ALLOWED?'],
+  q:['Diversity-only case: plaintiff (Iowa) v. defendant (Nebraska), who impleads a third party (Iowa). The plaintiff sues the third party on a state claim. Supplemental jurisdiction?','No, § 1367(b) bars it','Yes, it is part of the same case or controversy','Yes, if the claim exceeds $75,000','Only if the third party consents','§ 1367(b) bars plaintiffs’ claims against persons made parties under Rule 14 when that would undercut complete diversity.'],
+  ok:['* CORRECT.','* YOU MAY CROSS. THE BRIDGE IS OPEN.','* (THE BRIDGE WAS ALWAYS OPEN. I WAS JUST STANDING ON IT.)'],no:['* WRONG. THE GOAT WOULD BE PLEASED. I AM NOT.']}],
+ after:['* THE GOAT AND I ARE IN MEDIATION. IT IS GOING POORLY. THE GOAT ATE THE AGENDA.']},
+{id:'dog',name:'Good Boy, Final Judgment',steps:[
+ {npc:'dog',pre:['* ARF! I’m the clerk of court!','* The judge denied our motion to dismiss. I filed a notice of appeal the NEXT DAY!','* Good boy?'],
+  q:['The district court denies a motion to dismiss for failure to state a claim. Can the defendant appeal right away?','No, the denial isn’t a final decision','Yes, motions to dismiss are always appealable','Yes, under § 1292(a)(1)','Yes, if the notice is filed within 30 days','§ 1291 allows appeals from final decisions; a denial of a motion to dismiss isn’t one.'],
+  ok:['* ...not a good boy. I’ll withdraw it. *sad tail*'],no:['* ARF? That’s not what my chew toy said.']},
+ {npc:'dog',pre:['* We went to trial and lost!','* We never moved for judgment as a matter of law before the jury got the case.','* Can we file a Rule 50(b) motion now?'],
+  q:['A party never moved under Rule 50(a) before the case went to the jury. After losing, can it move under Rule 50(b)?','No, a 50(b) motion must renew a 50(a) motion','Yes, as long as it is filed within 28 days after judgment','Yes, but only with the court’s leave','Only in a bench trial','A Rule 50(b) motion renews an earlier 50(a) motion; without one, there is nothing to renew.'],
+  ok:['* So we skipped a step. Like skipping dinner. Terrible.'],no:['* Arf... I don’t think that’s right.']},
+ {npc:'dog',pre:['* Judgment was entered on June 1. Nobody filed post-trial motions.','* When is our notice of appeal due? Private parties only. No government cats.'],
+  q:['Judgment is entered June 1 in a case between private parties, with no post-trial motions. The notice of appeal is due:','Within 30 days, by July 1','Within 60 days, by July 31','Within 14 days, by June 15','Any time before the judgment is paid','FRAP 4(a)(1)(A): 30 days after entry of judgment.'],
+  ok:['* July 1! I’ll mark it on my calendar. With my nose.','* GOOD BOY. (me. I mean me.)'],no:['* ARF! No, no.']}],
+ after:['* I docketed everything today. Then I docketed a stick.']},
+];
+const CQBY=Object.fromEntries(CQUESTS.map(q=>[q.id,q]));
+
+/* ---------- state ---------- */
+const CM={say:null,ask:null,menu:null,held:[],raf:0,last:0,mov:null,mus:'cp',busy:false,mi:0};
+function cS(){if(!S.camp)S.camp={x:19,y:18,dir:'up',qs:{},items:[],eq:[],beat:{},vend:0,log:0,intro:0,won:0,talk:{}};return S.camp}
+const cDone=id=>(cS().qs[id]||0)>=CQBY[id].steps.length;
+const cDoneN=()=>CQUESTS.filter(q=>cDone(q.id)).length;
+const cHas=it=>cS().items.includes(it);
+const cEq=it=>cS().eq.includes(it);
+function cNpcPos(n){if(n.id==='troll'&&cDone('troll'))return [21,22];return [n.x,n.y]}
+function cNpcAt(x,y){return CNPC.find(n=>{const [a,b]=cNpcPos(n);return a===x&&b===y})}
+function cWalk(x,y){if(x<0||y<0||x>=CW||y>=CH_)return false;if(CBLOCK.includes(CMAP[y][x]))return false;return !cNpcAt(x,y)}
+// marker over a person: '!' when they have something for you, '⚔' for an unbeaten student
+function cMark(n){if(n.stu)return cS().beat[n.stu]?'':'duel';const st=cStepFor(n.id);return st?'!':''}
+function cStepFor(id){for(const q of CQUESTS){const i=cS().qs[q.id]||0;if(i<q.steps.length&&q.steps[i].npc===id&&(i>0||q.steps[0].npc===id))return {q,i}}return null}
+
+/* ---------- entering, saving ---------- */
+function campEnter(){cS();CM.say=null;CM.ask=null;CM.menu=null;CM.held=[];CM.mov=null;CM.mus='cp';V='camp';render();
+  if(!cS().intro){cS().intro=1;save();campSay([[null,'* You wake up on a bench.'],[null,'* The air smells like toner and anxiety.'],[null,'* Welcome to CIV PRO PREFECTURE.'],[null,'* It is the night before finals. It has been the night before finals for a while now.'],['syl','* Psst. Over here. I’m THE SYLLABUS. Talk to me.']])}}
+function campLeave(){save();CM.say=CM.ask=CM.menu=null;if(CM.raf){cancelAnimationFrame(CM.raf);CM.raf=0}go('title')}
+
+/* ---------- view ---------- */
+function campRender(){
+  const c=cS();
+  app.innerHTML=`<div class="camp"><div class="chud"><span><b>CIV PRO PREFECTURE</b> <span class="dim">· campaign (experimental)</span></span><span>PROBLEMS <b id="cprob" style="color:inherit">${cDoneN()}</b>/10 · <button class="lnk" data-act="camp" data-v="menu" id="cmenu">☰ bag &amp; quests</button> · <button class="lnk" data-act="camp" data-v="leave" id="cleave">save &amp; quit</button></span></div>
+  <div class="cwrap"><canvas id="cv" width="${CVW*CT}" height="${CVH*CT}" aria-label="Town map. Use arrow keys or WASD to walk, Z or Enter to talk."></canvas><div id="cov"></div></div>
+  <div class="cpad" aria-label="Touch controls"><div class="dpad"><button data-dir="up" aria-label="up">▲</button><button data-dir="left" aria-label="left">◀</button><button data-dir="right" aria-label="right">▶</button><button data-dir="down" aria-label="down">▼</button></div><div class="ab"><button data-act="camp" data-v="b" class="bbtn" aria-label="menu">B</button><button data-act="camp" data-v="a" class="abtn" aria-label="talk">A</button></div></div>
+  <p class="dim ckeys">Move <kbd>↑↓←→</kbd>/<kbd>WASD</kbd> · talk <kbd>Z</kbd>/<kbd>Enter</kbd> · bag <kbd>X</kbd>/<kbd>Esc</kbd></p></div>`;
+  campOv();
+  const pad=app.querySelector('.dpad');
+  pad.querySelectorAll('[data-dir]').forEach(b=>{const d=b.dataset.dir;const on=e=>{e.preventDefault();campHold(d,true)},off=e=>{e.preventDefault();campHold(d,false)};b.addEventListener('pointerdown',on);['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,off))});
+  if(!CM.raf){CM.last=performance.now();CM.raf=requestAnimationFrame(campFrame)}
+}
+function campHold(d,on){CM.held=CM.held.filter(x=>x!==d);if(on)CM.held.push(d)}
+const cPort=(id)=>{const n=CNPCBY[id];if(!n)return '';return spr(n.s,n.c)};
+function campOv(){const el=document.getElementById('cov');if(!el)return;const pr=document.getElementById('cprob');if(pr)pr.textContent=cDoneN();const wr=el.parentNode;if(wr)wr.classList.toggle('asking',!!(CM.ask||CM.menu));
+  if(CM.ask){const A=CM.ask;el.innerHTML=`<div class="cask"><div class="cq">${A.title?`<small>${esc(A.title)}</small>`:''}${esc(A.q)}</div>${A.opts.map((o,i)=>`<button class="copt ${i===A.sel?'on':''}" data-act="camp" data-v="pick:${i}" id="copt${i}"><span class="ht" aria-hidden="true">${i===A.sel?'❤':''}</span><span>${esc(o.t)}</span></button>`).join('')}</div>`;return}
+  if(CM.say){const L=CM.say.lines[CM.say.i],who=L[0]?CNPCBY[L[0]]:null;el.innerHTML=`<div class="cdlg ${who?'':'nar'}" data-act="camp" data-v="adv">${who?`<div class="cport">${cPort(L[0])}</div>`:''}<div><div class="cwho">${who?esc(who.n):''}</div><div class="ctxt" id="ctxt">${esc(L[1].slice(0,CM.say.ch))}</div></div><span class="cmore" id="cmore" style="visibility:${CM.say.ch>=L[1].length?'visible':'hidden'}">▼</span></div>`;return}
+  if(CM.menu){el.innerHTML=campMenuV();return}
+  el.innerHTML='';
+}
+function campMenuV(){const c=cS(),tab=CM.menu.tab;
+  const items=Object.keys(CITEMS).filter(cHas);
+  const body=tab==='bag'?(items.length?items.map((k,i)=>{const it=CITEMS[k],on=cEq(k);return `<div class="citem ${CM.mi===i?'sel':''}"><span class="cic">${spr(it.s,it.c)}</span><div><b>${esc(it.n)}</b>${on?' <span class="good">· equipped</span>':''}<div class="dim">${esc(it.d)}</div></div><button class="btn ${on?'':'gold'}" data-act="camp" data-v="eq:${k}" id="ceq-${k}">${on?'UNEQUIP':'EQUIP'}</button></div>`}).join(''):'<p class="dim">* Your bag is empty. It is a very nice bag, though.</p>')+`<p class="dim" style="margin:8px 0 0">Equipped ${c.eq.length}/2. Items work only in campaign matches. ${5-items.length} item${5-items.length===1?'':'s'} still out there.</p>`
+   :CQUESTS.map(q=>{const i=c.qs[q.id]||0,d=i>=q.steps.length,n=CNPCBY[q.steps[Math.min(i,q.steps.length-1)].npc];return `<div class="cql ${d?'done':''}"><b>${d?'✔':i?'…':'·'} ${esc(q.name)}</b> <span class="dim">${d?'solved':i?`step ${i+1}/3 · talk to ${esc(n.n)}`:'not started'}</span></div>`}).join('')+`<div class="cql"><b>${c.beat.l1&&c.beat.l2&&c.beat.l3?'✔':'·'} Student duels</b> <span class="dim">${['l1','l2','l3'].filter(k=>c.beat[k]).length}/3 won</span></div><div class="cql"><b>${c.won?'✔':'·'} Finals</b> <span class="dim">${cDoneN()>=10?(c.won?'passed':'the LAW SCHOOL is open'):'opens when all 10 problems are solved'}</span></div>`;
+  return `<div class="cmenu"><div class="row" style="margin:0 0 10px"><button class="btn ${tab==='bag'?'gold':''}" data-act="camp" data-v="tab:bag" id="ctab-bag">BAG</button><button class="btn ${tab==='q'?'gold':''}" data-act="camp" data-v="tab:q" id="ctab-q">QUESTS</button><button class="btn" data-act="camp" data-v="close" id="cclose">CLOSE ✕</button></div>${body}</div>`}
+
+/* ---------- dialogue (Undertale style) ---------- */
+function campSay(lines,then){CM.say={lines,i:0,ch:0,then};campOv();campType()}
+function blip(v){if(!MUS.ctx||musVol()===0||MUS.ctx.state!=='running')return;const c=MUS.ctx,o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=v;g.gain.setValueAtTime(.12,c.currentTime);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.045);o.connect(g);g.connect(MUS.master);o.start();o.stop(c.currentTime+.05)}
+function campType(){const D=CM.say;if(!D||V!=='camp')return;const L=D.lines[D.i][1];
+  if(D.ch<L.length){const step=S.settings.text===2?L.length:S.settings.text===1?2:1;D.ch=Math.min(L.length,D.ch+step);const t=document.getElementById('ctxt');if(t)t.textContent=L.slice(0,D.ch);
+    if(D.ch%3===0&&/[a-z0-9]/i.test(L[D.ch-1]||'')){const n=D.lines[D.i][0];blip(n&&CNPCBY[n]?CNPCBY[n].v:420)}
+    setTimeout(campType,/[.,!?]/.test(L[D.ch-1]||'')?90:30)}
+  else{const m=document.getElementById('cmore');if(m)m.style.visibility='visible'}}
+function campAdv(){const D=CM.say;if(!D)return;const L=D.lines[D.i][1];if(D.ch<L.length){D.ch=L.length;campOv();return}
+  D.i++;D.ch=0;if(D.i>=D.lines.length){CM.say=null;campOv();if(D.then)D.then();return}campOv();campType()}
+// multiple choice. ok() gets true/false. For plain choices (no correct answer) pass opts as strings and onPick(i).
+function campAsk(q,title,opts,cb){CM.ask={q,title,opts,sel:0,cb};campOv()}
+function campPick(i){const A=CM.ask;if(!A)return;CM.ask=null;campOv();A.cb(i,A.opts[i])}
+
+/* ---------- talking ---------- */
+const nar=t=>[null,t];
+function campTalk(n){
+  const c=cS();c.talk[n.id]=(c.talk[n.id]||0)+1;
+  if(n.stu)return campStudent(n);
+  if(n.id==='syl')return campSay([[n.id,'* I am THE SYLLABUS. I contain everything. Nobody reads me.'],[n.id,`* Problems solved: ${cDoneN()} of 10.${cDoneN()>=10?' The LAW SCHOOL is open. Go north. Good luck. I mean it.':' Look for townsfolk with a ! over their heads.'}`],[n.id,'* Students with a sword over their heads want to duel. Winning gets you items.'],[n.id,'* Press X or tap ☰ to equip up to two items. They only work in matches here.']]);
+  if(n.id==='vend')return campVend(n);
+  const st=cStepFor(n.id);
+  if(st)return campStep(st.q,st.i);
+  // finished questline, or waiting on a different person
+  const q=CQUESTS.find(q=>q.steps.some(s=>s.npc===n.id));
+  if(q&&cDone(q.id))return campSay(q.after.map(t=>[n.id,t]));
+  if(n.id==='baker')return campSay([[n.id,'* Fresh bread! Well. Bread.'],[n.id,'* Some goose has been glaring at my shop all morning.']]);
+  return campSay([[n.id,'* ...']]);
+}
+function campStep(q,i){const st=q.steps[i],n=st.npc;
+  campSay(st.pre.map(t=>[n,t]),()=>{
+    const [qq,a,...rest]=st.q,e=rest[3],opts=shuf([{t:a,ok:true},{t:rest[0]},{t:rest[1]},{t:rest[2]}]);
+    campAsk(qq,`${q.name} · ${i+1}/${q.steps.length}`,opts,(k,o)=>{
+      S.answered++;
+      if(o.ok){S.right++;cS().qs[q.id]=i+1;save();const fin=i+1>=q.steps.length;
+        const tail=fin?[nar('* QUEST COMPLETE: '+q.name.toUpperCase()+'.'),...(cDoneN()===10?[nar('* Somewhere up north, a heavy door unlocks.'),nar('* The LAW SCHOOL is open. Finals await.')]:cDoneN()===3&&!cHas('coffee')?[nar('* (Somewhere in the plaza, a vending machine hums meaningfully.)')]:[])]:[];
+        campSay([nar('* (Correct.) '+e),...st.ok.map(t=>[n,t]),...tail]);
+      }else campSay([...st.no.map(t=>[n,t]),nar('* (Not quite. Talk to them again to try once more.)')]);
+    })});
+}
+function campVend(n){const c=cS();
+  if(cHas('coffee'))return campSay([[n.id,'* VENDY IS EMPTY. VENDY GAVE YOU EVERYTHING.'],[n.id,'* VENDY IS AT PEACE.']]);
+  if(cDoneN()>=3){c.items.push('coffee');if(c.eq.length<2)c.eq.push('coffee');save();return campSay([[n.id,'* OH! YOU’RE THE ONE HELPING EVERYONE.'],[n.id,'* VENDY HAS BEEN SAVING THIS. FOR A HERO. OR A 1L.'],nar('* You got the BOTTOMLESS COLD BREW!'),nar('* '+CITEMS.coffee.d)])}
+  const L=[[[n.id,'* HELLO. I AM VENDY. I SELL ONLY COLD BREW.'],[n.id,'* YOU HAVE NO MONEY. YOU ARE A LAW STUDENT.']],[[n.id,'* STOP SHAKING VENDY.'],[n.id,'* VENDY IS JUDGING YOU. VENDY IS A VERY HARSH GRADER.']],[[n.id,'* FINE PRINT: “FREE FOR ANYONE WHO HAS HELPED THREE TOWNSFOLK.”'],nar(`* (You have helped ${cDoneN()}.)`)]];
+  c.vend=(c.vend||0)+1;save();campSay(L[Math.min(2,c.vend-1)]);
+}
+function campStudent(n){const k=n.stu,D=CSTU[k],c=cS();
+  if(c.beat[k])return campSay(D.after);
+  campSay(D.pre,()=>campAsk(`${D.n} wants to duel.`,'',[{t:'DUEL'},{t:'NOT NOW'}],i=>{if(i===0)campMatch(k);else campSay([[n.id,'* oh. okay. i’ll be here. studying. forever.']])}));
+}
+function campTile(x,y){const t=CMAP[y][x];
+  if(t==='S'){const msg=x===17?['* LAW SCHOOL. FINALS IN PROGRESS SINCE TIME BEGAN.']:x===21?['* CIV PRO PREFECTURE. POP.: SEVERAL PARTIES, SOME INDISPENSABLE.','* NO LOITERING. NO FORUM SHOPPING.']:['* BRIDGE MAINTAINED BY A TROLL. ALL TOLLS FINAL.','* NO REFUNDS. NO APPEALS.'];return campSay(msg.map(nar))}
+  if(t==='D'){if(y===5)return campDoor();return campSay([nar(['* It’s locked. Someone inside is outlining.','* Locked. A sign says: “BACK IN 5 MINUTES.” It has said that since 1938.','* You knock. Somebody whispers “objection.”'][(x+y)%3])])}
+  if(t==='h'){if(cHas('pamph'))return campSay([nar('* An empty hollow log. It smells like old outlines.')]);cS().items.push('pamph');if(cS().eq.length<2)cS().eq.push('pamph');save();return campSay([nar('* There’s something wedged inside the log.'),nar('* It’s a RULES PAMPHLET. Somebody highlighted the entire thing.'),nar('* You got the RULES PAMPHLET!'),nar('* '+CITEMS.pamph.d)])}
+  if(t==='f')return campSay([nar('* A fountain. People throw coins in and wish for a curve.')]);
+  if(t==='~')return campSay([nar('* The river is cold and moving at a reasonable speed.')]);
+}
+function campDoor(){const c=cS(),N=cDoneN();
+  if(N<10)return campSay([nar('* The door to the LAW SCHOOL is locked.'),nar(`* A note: “FINALS OPEN WHEN THE TOWN’S PROCEDURE IS IN ORDER.” (${N}/10)`)]);
+  const P='peterson';
+  const pre=c.won?[[P,'* Back again? The exam is the same. You are not.'],[P,'* Care to retake it? For fun. Nothing is on the line. Except pride.']]
+   :[nar('* The door creaks open.'),nar('* A cold room. Rows of desks. A potato sits on the lectern, glowing.'),[P,'* Ah. You made it.'],[P,'* The whole town says you’ve been... helpful. Goose included.'],[P,'* Your classmates are here too. Everyone sits the same final.'],[P,'* One more thing. When I get on a roll, I review my notes. It does wonders for my stamina.'],nar('* (PROF. PETERSON heals 1 life for every right answer during a streak, up to 5.)'),[P,'* Shall we begin?']];
+  campSay(pre,()=>campAsk('Take the final?','',[{t:'TAKE THE FINAL'},{t:'NOT YET'}],i=>{if(i===0)campMatch('final');else campSay([[P,'* Office hours are always open. Well. Tuesdays.']])}));
+}
+
+/* ---------- matches ---------- */
+function campMatch(kind){
+  const c=cS(),eq=c.eq,fin=kind==='final';
+  const me=mkPlayer({...meP(),lives:(fin?5:3)+(eq.includes('outline')?2:0)});
+  if(eq.includes('buckler')){me.ward=1;me.stk=2}
+  if(eq.includes('gavel'))me.gavel=1;
+  if(eq.includes('coffee'))me.tmul=1.5;
+  if(eq.includes('pamph'))me.hint=1;
+  const stu=k=>{const D=CSTU[k];return mkPlayer({id:'bot_'+k,n:D.n,s:D.s,c:D.c,lives:D.lives,cpu:{n:D.n,s:D.s,c:D.c,acc:D.acc,spd:D.spd,right:D.right,wrong:D.wrong,life:D.life,streak:D.streak,elim:D.elim}})};
+  let ps,label,topics=null,mus='vs';
+  if(fin){const pr=CPU.peterson;ps=[me,stu('l1'),mkPlayer({id:'bot_peterson',n:pr.n,s:pr.s,c:pr.c,lives:5,cpu:{...pr,acc:.88,heal:1}}),stu('l2'),stu('l3')];label='FINALS · PROF. PETERSON';mus='boss'}
+  else{ps=[me,stu(kind)];label=CSTU[kind].label;topics=CSTU[kind].topics}
+  G=newG({mode:'story',world:'cp',floor:0,players:ps,camp:{kind,label,topics,mus,boss:fin}});
+  CM.say=CM.ask=CM.menu=null;CM.held=[];CM.mov=null;
+  V='game';newTopic();render();startLoop();
+}
+// called from startTurn after the timer is set
+function campTurn(p){if(!isMe(p))return;if(p.tmul)G.timer=Math.round(G.timer*p.tmul);
+  if(p.hint){const q=G.q;if(q.hinted!==G.turnId){const wr=q.opts.map((o,i)=>i).filter(i=>!q.opts[i].ok&&!q.elim.includes(i));if(wr.length>1){q.elim.push(pick(wr));q.hinted=G.turnId}}}}
+// called from answer() on a right answer, after the usual narration
+function campRight(p){
+  if(p.cpu&&p.cpu.heal&&p.streak&&p.lives<5){p.lives++;p.maxL=Math.max(p.maxL,p.lives);say(`${p.n} reviews his notes. +1 life.`,'hot');G.bark={id:p.id,text:pick(['Let me just check my notes.','Ah, yes. As I wrote in 2011.','Stamina is a procedural virtue.']),until:performance.now()+2200}}
+  if(isMe(p)&&p.gavel){const n=G.players.length,me=G.players.indexOf(p),hit=[];
+    for(const dir of [-1,1]){for(let k=1;k<n;k++){const j=(me+dir*k+n*k)%n,o=G.players[j];if(o.alive&&o!==p){if(!hit.includes(o))hit.push(o);break}}}
+    hit.forEach(o=>{o.lives--;o.run=0;o.streak=false;if(o.lives<=0){o.alive=false;G.elim.push(o.id)}});
+    if(hit.length)say(`ECHO GAVEL! ${hit.map(o=>o.n).join(' and ')} lose${hit.length===1?'s':''} a heart.${hit.some(o=>!o.alive)?' Someone is out.':''}`,'good')}
+}
+function campEnd(){
+  const me=G.players.find(isMe),won=!!(me&&me.alive),k=G.camp.kind,c=cS();
+  S.played++;S.bestRun=Math.max(S.bestRun,G.maxRun);
+  G=null;V='camp';CM.mus='cp';render();
+  if(k==='final'){
+    if(won){const first=!c.won;c.won=1;save();const P='peterson';CM.mus='home';musSync();
+      campSay([[P,'* ...'],[P,'* Well.'],[P,'* That was a well-pleaded performance.'],[P,'* Subject matter jurisdiction first. Always. You remembered.'],nar('* You passed CIVIL PROCEDURE.'),nar('* The potato on the lectern cools. For now.'),...(first?[nar('* CAMPAIGN COMPLETE.'),nar('* (This mode is experimental. TORTS TUNDRA and CONTRACTS COAST are still being surveyed.)')]:[]),nar('* You can keep exploring, retake the final, or save & quit.')],()=>{CM.mus='cp';musSync()})}
+    else campSay([[ 'peterson','* Hm. Not this time.'],['peterson','* Office hours are Tuesdays. Bring questions. Bring a better strategy.'],nar('* (Try equipping different items. The door stays open.)')]);
+    return}
+  const D=CSTU[k];
+  if(won){const first=!c.beat[k];c.beat[k]=1;let got=[];if(first&&!cHas(D.item)){c.items.push(D.item);if(c.eq.length<2)c.eq.push(D.item);got=[nar(`* You got the ${CITEMS[D.item].n}!`),nar('* '+CITEMS[D.item].d),...(c.eq.includes(D.item)?[]:[nar('* (Your hands are full. Equip it from the bag: X or ☰.)')])]}save();campSay([...D.win,...got])}
+  else campSay([...D.lose,nar('* (Talk to them again for a rematch.)')]);
+}
+
+/* ---------- movement & drawing ---------- */
+const CDIR={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+function campFrame(ts){
+  if(V!=='camp'){CM.raf=0;return}
+  const dt=Math.min(60,ts-CM.last);CM.last=ts;const c=cS();
+  if(CM.mov){CM.mov.t+=dt;if(CM.mov.t>=CM.mov.d){c.x=CM.mov.x;c.y=CM.mov.y;CM.mov=null;if(Math.random()<.02)save()}}
+  if(!CM.mov&&!CM.say&&!CM.ask&&!CM.menu&&CM.held.length){const d=CM.held[CM.held.length-1],[dx,dy]=CDIR[d];c.dir=d;const nx=c.x+dx,ny=c.y+dy;if(cWalk(nx,ny))CM.mov={fx:c.x,fy:c.y,x:nx,y:ny,t:0,d:150}}
+  campDraw(ts);CM.raf=requestAnimationFrame(campFrame);
+}
+function campDraw(ts){const cv=document.getElementById('cv');if(!cv)return;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;const c=cS();
+  let px=c.x,py=c.y;if(CM.mov){const k=CM.mov.t/CM.mov.d;px=CM.mov.fx+(CM.mov.x-CM.mov.fx)*k;py=CM.mov.fy+(CM.mov.y-CM.mov.fy)*k}
+  const camX=Math.max(0,Math.min(CW-CVW,px-(CVW-1)/2)),camY=Math.max(0,Math.min(CH_-CVH,py-(CVH-1)/2));
+  g.fillStyle='#000';g.fillRect(0,0,cv.width,cv.height);
+  const x0=Math.floor(camX),y0=Math.floor(camY);
+  for(let y=y0;y<=y0+CVH&&y<CH_;y++)for(let x=x0;x<=x0+CVW&&x<CW;x++)cTile(g,CMAP[y][x],x,y,Math.round((x-camX)*CT),Math.round((y-camY)*CT),ts);
+  // people, drawn top to bottom
+  const ents=CNPC.map(n=>{const [a,b]=cNpcPos(n);return {n,x:a,y:b}});ents.push({me:1,x:px,y:py});ents.sort((a,b)=>a.y-b.y);
+  for(const e of ents){const sx=Math.round((e.x-camX)*CT),sy=Math.round((e.y-camY)*CT);if(sx<-16||sy<-20||sx>cv.width||sy>cv.height)continue;
+    g.fillStyle='rgba(0,0,0,.35)';g.fillRect(sx+3,sy+13,10,2);
+    if(e.me){const bob=CM.mov&&Math.floor(CM.mov.t/75)%2?1:0;cSpr(g,ICONS[prof().icon],COLORS[prof().color],sx,sy-1-bob,c.dir==='left')}
+    else{const n=e.n,bob=Math.floor(ts/600+n.x)%2;if(n.id==='fish'){g.fillStyle='#2d6cc0';g.fillRect(sx,sy+10,16,6)}cSpr(g,n.s,n.c,sx,sy-bob,false);
+      const m=cMark(n);if(m){const my=sy-9-Math.floor(ts/300)%2;if(m==='duel'){g.fillStyle='#ff4d6d';g.fillRect(sx+7,my,2,6);g.fillRect(sx+5,my+4,6,1);g.fillRect(sx+7,my+6,2,2)}else{g.fillStyle='#ffd84a';g.fillRect(sx+7,my,2,5);g.fillRect(sx+7,my+6,2,2)}}}}
+}
+function cSpr(g,name,col,sx,sy,flip){
+  if(PROF[name]){const P=PROF[name];P.r.forEach((row,y)=>[...row].forEach((ch,x)=>{const f=P.p[ch];if(f){g.fillStyle=f;g.fillRect(sx+(flip?15-x:x),sy+y,1,1)}}));return}
+  const S2=SPR[name]||SPR.potato;S2.forEach((row,y)=>[...row].forEach((ch,x)=>{if(ch==='X'||ch==='o'){g.fillStyle=ch==='X'?col:'#000';g.fillRect(sx+2+(flip?11-x:x),sy+3+y,1,1)}}));
+}
+function cHash(x,y){return ((x*73856093)^(y*19349663))>>>0}
+function cTile(g,t,x,y,sx,sy,ts){
+  const h=cHash(x,y),R=(c,a,b,w,hh)=>{g.fillStyle=c;g.fillRect(sx+a,sy+b,w,hh)};
+  const grass=()=>{R('#3f8f4a',0,0,16,16);R('#367d40',h%13,(h>>4)%14,1,2);R('#367d40',(h>>8)%14,(h>>12)%13,2,1);R('#4fa35a',(h>>16)%15,(h>>20)%15,1,1)};
+  const path=()=>{R('#c9b48a',0,0,16,16);R('#b39e74',0,(h%2)*8+7,16,1);R('#b39e74',(h>>3)%2?4:11,0,1,8);R('#b39e74',(h>>5)%2?7:13,8,1,8)};
+  switch(t){
+  case '.':grass();break;
+  case ',':grass();R(['#ff9be1','#ffd84a','#ffffff'][h%3],(h>>2)%12+2,(h>>6)%10+3,2,2);R(['#ffd84a','#ff9be1','#c58bff'][(h>>9)%3],(h>>11)%12+1,(h>>15)%10+2,1,1);break;
+  case '=':path();break;
+  case 'L':path();R('#333',7,3,2,13);R('#ffd84a',5,0,6,4);break;
+  case '~':{R('#2d6cc0',0,0,16,16);const o=Math.floor(ts/250+x)%8;R('#5d9be0',o,4+(y%2)*6,5,1);R('#5d9be0',(o+9)%16,10-(y%2)*4,4,1);break}
+  case 'B':R('#2d6cc0',0,0,16,16);R('#9b6b3a',1,0,14,16);for(let k=2;k<16;k+=4)R('#6e4a26',1,k,14,1);R('#5a3a1e',1,0,2,16);R('#5a3a1e',13,0,2,16);break;
+  case 'R':R('#a0383a',0,0,16,16);R('#7e2a2c',0,(y%2)*0+5,16,1);R('#7e2a2c',0,11,16,1);R('#b8484a',(x%2)*8,0,7,4);break;
+  case 'W':R('#e6dcc3',0,0,16,16);R('#cbbf9f',0,7,16,1);R('#cbbf9f',(y%2)*8,0,1,7);R('#cbbf9f',(y%2)*8+4,8,1,8);break;
+  case 'w':R('#e6dcc3',0,0,16,16);R('#5a4a3a',3,3,10,10);R('#6ad6ff',4,4,8,8);R('#bfe9ff',4,4,3,3);R('#5a4a3a',7,4,1,8);break;
+  case 'D':R('#e6dcc3',0,0,16,16);R('#6b4423',2,1,12,15);R('#8a5a30',3,2,10,14);R('#ffd84a',11,9,2,2);break;
+  case 'f':{path();R('#9aa0a8',0,0,16,16);R('#7d838b',0,0,16,1);const ox=x===19?2:0,oy=y===15?2:0;R('#3d8be0',ox,oy,14,14);R('#9fd3ff',((ts/120|0)+x*5)%10+ox+1,(y===15?6:4),2,2);break}
+  case '#':grass();R('#5a3a1e',7,11,2,5);R('#1f5e2c',2,1,12,11);R('#1f5e2c',1,3,14,7);R('#2e7a3c',4,2,5,4);R('#174a22',9,8,4,3);break;
+  case 'b':grass();R('#2a7035',2,6,12,9);R('#3b8a46',4,6,5,3);break;
+  case 'S':grass();R('#6e4a26',7,9,2,7);R('#b5834a',2,2,12,8);R('#8a5a30',3,4,10,1);R('#8a5a30',3,7,8,1);break;
+  case 'h':grass();R('#6e4a26',1,6,14,8);R('#8a5a30',1,6,14,2);R('#2b1d10',11,8,3,4);break;
+  default:grass();
+  }
+}
+
+/* ---------- input ---------- */
+function campInteract(){const c=cS();if(CM.mov)return;const [dx,dy]=CDIR[c.dir],tx=c.x+dx,ty=c.y+dy;const n=cNpcAt(tx,ty);if(n)return campTalk(n);
+  if(tx>=0&&ty>=0&&tx<CW&&ty<CH_)campTile(tx,ty)}
+function campAct(v,el){
+  if(v==='a')return campKeyAct('z');
+  if(v==='b')return campKeyAct('x');
+  if(v==='adv')return campAdv();
+  if(v==='menu'){CM.menu={tab:'bag'};CM.mi=0;campOv();return}
+  if(v==='close'){CM.menu=null;campOv();return}
+  if(v==='leave')return campLeave();
+  if(v.startsWith('tab:')){CM.menu={tab:v.slice(4)};campOv();return}
+  if(v.startsWith('pick:'))return campPick(+v.slice(5));
+  if(v.startsWith('eq:')){const k=v.slice(3),c=cS();if(!cHas(k))return;if(cEq(k))c.eq=c.eq.filter(x=>x!==k);else{if(c.eq.length>=2)c.eq.shift();c.eq.push(k)}save();campOv();return}
+}
+function campKeyAct(k){
+  if(CM.ask){const A=CM.ask;if(k==='up'){A.sel=(A.sel+A.opts.length-1)%A.opts.length;campOv();blip(600)}else if(k==='down'){A.sel=(A.sel+1)%A.opts.length;campOv();blip(600)}else if(k==='z')campPick(A.sel);else if(/^[1-4]$/.test(k)&&+k<=A.opts.length)campPick(+k-1);return}
+  if(CM.say){if(k==='z')campAdv();return}
+  if(CM.menu){if(k==='x'){CM.menu=null;campOv()}else if(CM.menu.tab==='bag'){const items=Object.keys(CITEMS).filter(cHas);if(!items.length)return;if(k==='up'){CM.mi=(CM.mi+items.length-1)%items.length;campOv()}else if(k==='down'){CM.mi=(CM.mi+1)%items.length;campOv()}else if(k==='z')campAct('eq:'+items[CM.mi])}return}
+  if(k==='z')campInteract();else if(k==='x'){CM.menu={tab:'bag'};CM.mi=0;campOv()}
+}
+const CKEY={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+function campKey(e,down){
+  const d=CKEY[e.key];
+  if(d){e.preventDefault();if(CM.ask||CM.menu){if(down&&(d==='up'||d==='down'))campKeyAct(d);return}campHold(d,down);return}
+  if(!down)return;
+  if(e.key==='z'||e.key==='Z'||e.key==='Enter'||e.key===' '){e.preventDefault();if(!e.repeat)campKeyAct('z')}
+  else if(e.key==='x'||e.key==='X'||e.key==='Escape'||e.key==='c'||e.key==='C'){e.preventDefault();campKeyAct('x')}
+  else if(/^[1-4]$/.test(e.key))campKeyAct(e.key);
+}
+document.addEventListener('keyup',e=>{if(V==='camp')campKey(e,false)});
+window.addEventListener('blur',()=>{CM.held=[]});
 
 /* ================= boot ================= */
 (async function boot(){
